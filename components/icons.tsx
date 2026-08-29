@@ -51,7 +51,7 @@ export function LeafIcon(props: IconProps) {
 }
 
 export function TruckIcon(props: IconProps) {
-  return <svg {...base(props)}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></svg>;
+  return <svg {...base(props)}><path d="M3 5.5h11v10H3zM14 9.5h4l3 3v3h-7z" /><circle cx="7" cy="17.5" r="1.6" /><circle cx="17" cy="17.5" r="1.6" /></svg>;
 }
 
 export function ShieldIcon(props: IconProps) {
@@ -75,7 +75,7 @@ export function MinusIcon(props: IconProps) {
 }
 
 export function CheckIcon(props: IconProps) {
-  return <svg {...base(props)}><path d="m5 12 4 4L19 6" /></svg>;
+  return <svg {...base(props)}><path d="m5 13 4 4L19 7" /></svg>;
 }
 
 export function MapPinIcon(props: IconProps) {
