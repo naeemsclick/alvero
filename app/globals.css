@@ -255,12 +255,12 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 /* Promise and UGC */
 .promise-strip-section { padding: 0; border-top: 1px solid #e2ece4; border-bottom: 1px solid #e2ece4; background: white; }
 .promise-strip { display: grid; grid-template-columns: repeat(4, 1fr); }
-.promise-item { display: flex; align-items: center; gap: 11px; padding: 23px 14px; border-right: 1px solid #edf1ed; }
+.promise-item { display: flex; align-items: center; gap: 12px; padding: 22px 14px; border-right: 1px solid #edf1ed; }
 .promise-item > div { min-width: 0; }
 .promise-item:first-child { padding-left: 0; }
 .promise-item:last-child { border-right: 0; }
-.promise-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; flex: 0 0 40px; border-radius: 50%; color: var(--brand); background: var(--mint); margin: 0; padding: 0; line-height: 1; }
-.promise-icon svg { display: block; flex-shrink: 0; margin: 0 auto; }
+.promise-icon { width: 42px; height: 42px; min-width: 42px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 42px; border-radius: 50%; color: var(--brand); background: var(--mint); margin: 0; padding: 0; line-height: 0; box-sizing: border-box; }
+.promise-icon svg { display: block; width: 20px; height: 20px; flex-shrink: 0; margin: 0 auto; }
 .promise-item strong, .promise-item span { display: block; }
 .promise-item strong { color: #263c30; font-size: 11px; }
 .promise-item span { color: #89958e; font-size: 10px; }

@@ -83,10 +83,10 @@ export function HomePage() {
 }
 
 function PromiseIcon({ name }: { name: string }) {
-  if (name === "truck") return <span className="promise-icon"><TruckIcon size={18} /></span>;
-  if (name === "shield") return <span className="promise-icon"><ShieldIcon size={18} /></span>;
-  if (name === "refresh") return <span className="promise-icon"><CheckIcon size={18} /></span>;
-  return <span className="promise-icon"><LeafIcon size={18} /></span>;
+  if (name === "truck") return <div className="promise-icon"><TruckIcon size={20} /></div>;
+  if (name === "shield") return <div className="promise-icon"><ShieldIcon size={20} /></div>;
+  if (name === "refresh") return <div className="promise-icon"><CheckIcon size={20} /></div>;
+  return <div className="promise-icon"><LeafIcon size={20} /></div>;
 }
 
 export function ConcernFinder() {

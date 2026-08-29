@@ -25,9 +25,19 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/media/alvero-cover.webp",
+        url: `${siteUrl}/media/alvero-share.png`,
+        secureUrl: `${siteUrl}/media/alvero-share.png`,
         width: 1200,
         height: 630,
+        type: "image/png",
+        alt: "Alvero Hair Solutions — Nature-led care for stronger hair"
+      },
+      {
+        url: `${siteUrl}/media/alvero-share.jpg`,
+        secureUrl: `${siteUrl}/media/alvero-share.jpg`,
+        width: 1200,
+        height: 630,
+        type: "image/jpeg",
         alt: "Alvero Hair Solutions — Nature-led care for stronger hair"
       }
     ]
@@ -36,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Alvero Hair Solutions | Nature-led care for stronger hair",
     description: "Effective, high-quality hair care inspired by nature. Cash on Delivery across Bangladesh.",
-    images: ["/media/alvero-cover.webp"]
+    images: [`${siteUrl}/media/alvero-share.png`]
   }
 };
 
