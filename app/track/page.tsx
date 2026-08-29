@@ -1,13 +1,17 @@
-"use client";
+import type { Metadata } from "next";
+import { TrackView } from "@/components/track-view";
 
-import { FormEvent, useState } from "react";
-import Link from "next/link";
-import { ArrowRightIcon, PackageIcon } from "@/components/icons";
-import { useLanguage } from "@/components/language-context";
+export const metadata: Metadata = {
+  title: "Track My Order",
+  description: "Track your Alvero Hair Solutions order status easily.",
+  openGraph: {
+    title: "Track My Order | Alvero Hair Solutions",
+    description: "Check your Alvero Hair Solutions package delivery status online.",
+    images: [{ url: "/media/alvero-cover.webp", width: 1200, height: 630, alt: "Alvero Hair Solutions Order Tracking" }]
+  },
+  twitter: { card: "summary_large_image", images: ["/media/alvero-cover.webp"] }
+};
 
 export default function TrackPage() {
-  const [submitted, setSubmitted] = useState(false);
-  const { language, t } = useLanguage();
-  function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSubmitted(true); }
-  return <div className="utility-page"><div className="utility-card-wrap"><div className="utility-icon"><PackageIcon size={28} /></div><p className="eyebrow">{t("track.kicker")}</p><h1>{t("track.title")}</h1><p className="utility-lead">{t("track.copy")}</p><form className="track-form" onSubmit={submit}><label>{t("checkout.name")}<input required placeholder={language === "bn" ? "আপনার পুরো নাম" : "Your full name"} /></label><label>{t("checkout.phone")}<input required type="tel" placeholder="01XXXXXXXXX" /></label><button className="btn btn-primary utility-full-btn" type="submit">{t("track.track")} <ArrowRightIcon size={15} /></button>{submitted && <p className="track-result">{t("track.demo")}</p>}</form><p className="utility-back"><Link href="/">{language === "bn" ? "Alvero হোমে ফিরুন" : "Back to Alvero home"}</Link></p></div></div>;
+  return <TrackView />;
 }

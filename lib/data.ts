@@ -35,7 +35,7 @@ export const brand = {
   tagline: "We believe healthy hair begins with the right care.",
   description:
     "At Alvero Hair Solutions, we believe healthy hair begins with the right care. Our mission is to provide effective, high-quality hair solutions that restore confidence and enhance natural beauty.",
-  phone: "01811899068",
+  phone: "+88 01811899068",
   whatsapp: "https://wa.me/8801811899068",
   email: "alverohairsolutions@gmail.com",
   address: "Dhaka, Bangladesh, 1212",
