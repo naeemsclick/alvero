@@ -22,10 +22,11 @@ import {
   RefreshIcon,
   WhatsAppIcon
 } from "@/components/icons";
-import { brand, formatPrice, products } from "@/lib/data";
+import { brand, formatPrice, type Product } from "@/lib/data";
 import { localizedProduct } from "@/lib/localize";
 import { useCart } from "@/components/cart-context";
 import { LanguageToggle, useLanguage } from "@/components/language-context";
+import { fetchWpProducts } from "@/lib/api";
 
 const navGroups = [
   {
@@ -88,6 +89,7 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [liveProducts, setLiveProducts] = useState<Product[]>([]);
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -95,11 +97,17 @@ export function SiteHeader() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (searchOpen && !liveProducts.length) {
+      fetchWpProducts().then((data) => setLiveProducts(data || []));
+    }
+  }, [searchOpen, liveProducts.length]);
+
   const searchResults = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return products.slice(0, 4);
-    return products.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(term)).slice(0, 6);
-  }, [search]);
+    if (!term) return liveProducts.slice(0, 4);
+    return liveProducts.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(term)).slice(0, 6);
+  }, [search, liveProducts]);
 
   function closePanels() {
     setMenuOpen(false);
@@ -138,22 +146,31 @@ export function SiteHeader() {
 
       {menuOpen && <div className="mobile-menu-layer" role="dialog" aria-modal="true" aria-label="Mobile navigation"><button className="drawer-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} /><aside className="mobile-menu-panel"><div className="mobile-menu-top"><LogoLockup /><button className="icon-button" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}><CloseIcon size={20} /></button></div><div className="mobile-menu-links"><Link href="/category/haircare" onClick={closePanels}>{t("nav.haircare")} <ChevronRightIcon size={16} /></Link><Link href="/category/hair-oil" onClick={closePanels}>{t("nav.hairOils")} <ChevronRightIcon size={16} /></Link><Link href="/category/hair-toner" onClick={closePanels}>{t("nav.hairToner")} <ChevronRightIcon size={16} /></Link><Link href="/category/shampoo" onClick={closePanels}>{t("nav.shampoo")} <ChevronRightIcon size={16} /></Link><Link href="/category/packages" onClick={closePanels}>{t("nav.packages")} <ChevronRightIcon size={16} /></Link><Link href="/guide" onClick={closePanels}>{t("nav.careGuide")} <ChevronRightIcon size={16} /></Link><Link href="/track" onClick={closePanels}>{t("nav.track")} <ChevronRightIcon size={16} /></Link><Link href="/refer-win" onClick={closePanels}>{t("nav.refer")} <ChevronRightIcon size={16} /></Link></div><div className="mobile-menu-note"><LeafIcon size={18} /><span>{language === "bn" ? "স্বাস্থ্যকর চুল শুরু হয় সঠিক যত্ন থেকে।" : "Healthy hair begins with the right care."}</span></div></aside></div>}
 
-      {searchOpen && <div className="search-layer" role="dialog" aria-modal="true" aria-label={t("header.search")}><button className="drawer-backdrop" aria-label="Close search" onClick={() => setSearchOpen(false)} /><div className="search-panel"><div className="search-panel-head"><div className="search-input-wrap"><SearchIcon size={18} /><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={language === "bn" ? "অয়েল, টোনার বা কম্বো সার্চ করুন..." : "Search hair oil, toner, combo..."} /></div><button className="icon-button" type="button" aria-label="Close search" onClick={() => setSearchOpen(false)}><CloseIcon size={20} /></button></div><p className="search-kicker">{search ? (language === "bn" ? "মিলে যাওয়া পণ্য" : "Matching products") : (language === "bn" ? "জনপ্রিয় কেয়ার এসেনশিয়াল" : "Popular care essentials")}</p><div className="search-results">{searchResults.length ? searchResults.map((product) => { const copy = localizedProduct(product, language); return <Link href={`/product/${product.slug}`} key={product.slug} className="search-result" onClick={() => setSearchOpen(false)}><img src={product.image} alt="" /><span><strong>{copy.name}</strong><small>{product.category} · {formatPrice(product.price)}</small></span><ChevronRightIcon size={16} /></Link>; }) : <p className="empty-search">{language === "bn" ? "কোনো পণ্য পাওয়া যায়নি।" : "No products found. Try “oil”, “toner” or “combo”."}</p>}</div></div></div>}
+      {searchOpen && <div className="search-layer" role="dialog" aria-modal="true" aria-label={t("header.search")}><button className="drawer-backdrop" aria-label="Close search" onClick={() => setSearchOpen(false)} /><div className="search-panel"><div className="search-panel-head"><div className="search-input-wrap"><SearchIcon size={18} /><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={language === "bn" ? "অয়েল, টোনার বা কম্বো সার্চ করুন..." : "Search hair oil, toner, combo..."} /></div><button className="icon-button" type="button" aria-label="Close search" onClick={() => setSearchOpen(false)}><CloseIcon size={20} /></button></div><p className="search-kicker">{search ? (language === "bn" ? "মিলে যাওয়া পণ্য" : "Matching products") : (language === "bn" ? "জনপ্রিয় কেয়ার এসেনশিয়াল" : "Popular care essentials")}</p><div className="search-results">{searchResults.length ? searchResults.map((product) => { const copy = localizedProduct(product, language); return <Link href={`/product/${product.slug}`} key={product.slug} className="search-result" onClick={() => setSearchOpen(false)}><img src={product.image || product.images?.[0] || '/media/alvero-oil-bottle.webp'} alt="" /><span><strong>{copy.name}</strong><small>{product.category} · {formatPrice(product.price)}</small></span><ChevronRightIcon size={16} /></Link>; }) : <p className="empty-search">{language === "bn" ? "কোনো পণ্য পাওয়া যায়নি।" : "No products found. Try “oil”, “toner” or “combo”."}</p>}</div></div></div>}
     </>
   );
 }
 
 function CartLine({ slug, quantity, image, name, price }: { slug: string; quantity: number; image: string; name: string; price: number }) {
   const { setQuantity, remove } = useCart();
-  return <div className="drawer-line"><img src={image} alt="" /><div className="drawer-line-copy"><strong>{name}</strong><span>{formatPrice(price)}</span><div className="mini-quantity"><button type="button" aria-label={`Decrease ${name}`} onClick={() => setQuantity(slug, quantity - 1)}><MinusIcon size={12} /></button><span>{quantity}</span><button type="button" aria-label={`Increase ${name}`} onClick={() => setQuantity(slug, quantity + 1)}><PlusIcon size={12} /></button></div></div><button className="remove-line" type="button" aria-label={`Remove ${name}`} onClick={() => remove(slug)}><CloseIcon size={15} /></button></div>;
+  return <div className="drawer-line"><img src={image || '/media/alvero-oil-bottle.webp'} alt="" /><div className="drawer-line-copy"><strong>{name}</strong><span>{formatPrice(price)}</span><div className="mini-quantity"><button type="button" aria-label={`Decrease ${name}`} onClick={() => setQuantity(slug, quantity - 1)}><MinusIcon size={12} /></button><span>{quantity}</span><button type="button" aria-label={`Increase ${name}`} onClick={() => setQuantity(slug, quantity + 1)}><PlusIcon size={12} /></button></div></div><button className="remove-line" type="button" aria-label={`Remove ${name}`} onClick={() => remove(slug)}><CloseIcon size={15} /></button></div>;
 }
 
 export function CartDrawer() {
   const { lines, subtotal, open, setOpen, add } = useCart();
+  const [liveProducts, setLiveProducts] = useState<Product[]>([]);
   const { language, t } = useLanguage();
-  const suggestions = products.filter((product) => !lines.some((line) => line.product.slug === product.slug)).slice(0, 3);
+
+  useEffect(() => {
+    if (open && !liveProducts.length) {
+      fetchWpProducts().then((data) => setLiveProducts(data || []));
+    }
+  }, [open, liveProducts.length]);
+
+  const suggestions = liveProducts.filter((product) => !lines.some((line) => line.product.slug === product.slug)).slice(0, 3);
   if (!open) return null;
-  return <div className="cart-layer" role="dialog" aria-modal="true" aria-label={t("cart.title")}><button className="drawer-backdrop" aria-label="Close cart" onClick={() => setOpen(false)} /><aside className="cart-drawer"><div className="drawer-head"><div><span className="eyebrow">{t("cart.ritual")}</span><h2>{t("cart.title")}</h2></div><button className="icon-button" type="button" aria-label="Close cart" onClick={() => setOpen(false)}><CloseIcon size={20} /></button></div><div className="drawer-body">{lines.length ? <><div className="drawer-lines">{lines.map(({ product, quantity }) => <CartLine key={product.slug} slug={product.slug} quantity={quantity} image={product.image} name={localizedProduct(product, language).name} price={product.price} />)}</div><div className="drawer-summary"><span>{t("cart.subtotal")}</span><strong>{formatPrice(subtotal)}</strong></div><p className="drawer-note">{language === "bn" ? "ডেলিভারি চেকআউটে হিসাব হবে। বাংলাদেশজুড়ে ক্যাশ অন ডেলিভারি।" : "Delivery is calculated at checkout. Cash on Delivery available across Bangladesh."}</p><Link className="btn btn-primary drawer-cta" href="/cart" onClick={() => setOpen(false)}>{t("cart.checkout")} <ArrowRightIcon size={15} /></Link></> : <div className="empty-cart"><div className="empty-cart-icon"><BagIcon size={42} /></div><h3>{t("cart.emptyTitle")}</h3><p>{t("cart.emptyCopy")}</p><Link className="btn btn-primary" href="/category/haircare" onClick={() => setOpen(false)}>{t("cart.shopHaircare")} <ArrowRightIcon size={15} /></Link></div>}{suggestions.length > 0 && <div className="drawer-suggestions"><div className="drawer-suggestion-head"><h3>{t("cart.mayLike")}</h3><span>{t("cart.quickAdd")}</span></div><div className="drawer-suggestion-row">{suggestions.map((product) => <div className="drawer-suggestion" key={product.slug}><Link href={`/product/${product.slug}`} onClick={() => setOpen(false)}><img src={product.image} alt="" /><strong>{localizedProduct(product, language).name}</strong></Link><div><span>{formatPrice(product.price)}</span><button type="button" onClick={() => add(product)}>+ {language === "bn" ? "যোগ" : "Add"}</button></div></div>)}</div></div>}</div></aside></div>;
+
+  return <div className="cart-layer" role="dialog" aria-modal="true" aria-label={t("cart.title")}><button className="drawer-backdrop" aria-label="Close cart" onClick={() => setOpen(false)} /><aside className="cart-drawer"><div className="drawer-head"><div><span className="eyebrow">{t("cart.ritual")}</span><h2>{t("cart.title")}</h2></div><button className="icon-button" type="button" aria-label="Close cart" onClick={() => setOpen(false)}><CloseIcon size={20} /></button></div><div className="drawer-body">{lines.length ? <><div className="drawer-lines">{lines.map(({ product, quantity }) => <CartLine key={product.slug} slug={product.slug} quantity={quantity} image={product.image} name={localizedProduct(product, language).name} price={product.price} />)}</div><div className="drawer-summary"><span>{t("cart.subtotal")}</span><strong>{formatPrice(subtotal)}</strong></div><p className="drawer-note">{language === "bn" ? "ডেলিভারি চেকআউটে হিসাব হবে। বাংলাদেশজুড়ে ক্যাশ অন ডেলিভারি।" : "Delivery is calculated at checkout. Cash on Delivery available across Bangladesh."}</p><Link className="btn btn-primary drawer-cta" href="/cart" onClick={() => setOpen(false)}>{t("cart.checkout")} <ArrowRightIcon size={15} /></Link></> : <div className="empty-cart"><div className="empty-cart-icon"><BagIcon size={42} /></div><h3>{t("cart.emptyTitle")}</h3><p>{t("cart.emptyCopy")}</p><Link className="btn btn-primary" href="/category/haircare" onClick={() => setOpen(false)}>{t("cart.shopHaircare")} <ArrowRightIcon size={15} /></Link></div>}{suggestions.length > 0 && <div className="drawer-suggestions"><div className="drawer-suggestion-head"><h3>{t("cart.mayLike")}</h3><span>{t("cart.quickAdd")}</span></div><div className="drawer-suggestion-row">{suggestions.map((product) => <div className="drawer-suggestion" key={product.slug}><Link href={`/product/${product.slug}`} onClick={() => setOpen(false)}><img src={product.image || product.images?.[0] || '/media/alvero-oil-bottle.webp'} alt="" /><strong>{localizedProduct(product, language).name}</strong></Link><div><span>{formatPrice(product.price)}</span><button type="button" onClick={() => add(product)}>+ {language === "bn" ? "যোগ" : "Add"}</button></div></div>)}</div></div>}</div></aside></div>;
 }
 
 export function SiteFooter() {

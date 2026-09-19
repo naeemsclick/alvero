@@ -3,31 +3,53 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRightIcon, ChevronRightIcon } from "@/components/icons";
-import { categories, getProductsByCategory, type Product } from "@/lib/data";
+import { categories, type Product } from "@/lib/data";
 import { ProductGrid } from "@/components/product-card";
 import { useLanguage } from "@/components/language-context";
 import { fetchWpProducts } from "@/lib/api";
 
+function CategorySkeleton() {
+  return (
+    <div className="product-grid" style={{ opacity: 0.6 }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="product-card" style={{ height: 350, background: "rgba(0,0,0,0.03)", borderRadius: 12 }} />
+      ))}
+    </div>
+  );
+}
+
 export function CategoryView({ slug }: { slug: string }) {
   const { language, t } = useLanguage();
-  const [wpProducts, setWpProducts] = useState<any[]>([]);
+  const [wpProducts, setWpProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchWpProducts().then((items) => {
-      if (items && items.length > 0) {
-        setWpProducts(items);
-      }
-    });
-  }, []);
+    let isMounted = true;
+    setLoading(true);
+    setError(false);
+    fetchWpProducts()
+      .then((items) => {
+        if (isMounted) {
+          setWpProducts(items || []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading category products:", err);
+        if (isMounted) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [slug]);
 
   const category = categories.find((item) => item.slug === slug) ?? categories[0];
-  const staticProducts = getProductsByCategory(slug);
 
-  const dynamicCategoryProducts = wpProducts.length > 0
-    ? (slug === "haircare" ? wpProducts : wpProducts.filter((p) => p.categorySlug === slug || p.category.toLowerCase().includes(slug.replace('-', ' '))))
-    : staticProducts;
-
-  const categoryProducts = dynamicCategoryProducts.length > 0 ? dynamicCategoryProducts : staticProducts;
+  const categoryProducts = slug === "haircare" || slug === "all"
+    ? wpProducts
+    : wpProducts.filter((p) => p.categorySlug === slug || p.category.toLowerCase().includes(slug.replace('-', ' ')));
 
   const categoryLabel = language === "bn"
     ? ({ Haircare: "হেয়ার কেয়ার", "Hair Oil": "হেয়ার অয়েল", "Hair Toner": "হেয়ার টোনার", Shampoo: "শ্যাম্পু", Packages: "প্যাকেজ" } as Record<string, string>)[category.label] || category.label
@@ -44,7 +66,7 @@ export function CategoryView({ slug }: { slug: string }) {
         <div className="collection-head">
           <div className="collection-title">
             <h1>{categoryLabel}</h1>
-            <p>{categoryProducts.length} {language === "bn" ? "টি পণ্য, আপনার রুটিনের জন্য বাছাই করা" : t("collection.essentials")}</p>
+            <p>{loading ? "..." : categoryProducts.length} {language === "bn" ? "টি পণ্য, আপনার রুটিনের জন্য বাছাই করা" : t("collection.essentials")}</p>
           </div>
           <div className="collection-tools">
             <span>{t("collection.browse")}</span>
@@ -70,8 +92,12 @@ export function CategoryView({ slug }: { slug: string }) {
             </Link>
           ))}
         </div>
-        {categoryProducts.length ? (
-          <ProductGrid products={categoryProducts as Product[]} />
+        {loading ? (
+          <CategorySkeleton />
+        ) : error ? (
+          <div className="collection-empty">{language === "bn" ? "পণ্য লোড করতে সমস্যা হয়েছে।" : "Failed to load products from WooCommerce."}</div>
+        ) : categoryProducts.length > 0 ? (
+          <ProductGrid products={categoryProducts} />
         ) : (
           <div className="collection-empty">{language === "bn" ? "এই কালেকশনে এখনো কোনো পণ্য নেই।" : "No products in this collection yet."}</div>
         )}

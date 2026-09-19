@@ -11,23 +11,59 @@ export async function GET() {
 
     if (res.ok) {
       const items = await res.json();
-      const products = Array.isArray(items) ? items.map((prod: any) => ({
-        id: String(prod.id),
-        slug: prod.slug,
-        name: prod.name,
-        category: prod.categories?.[0]?.name || 'Haircare',
-        categorySlug: prod.categories?.[0]?.slug || 'haircare',
-        price: Number(prod.price || prod.regular_price || 0),
-        originalPrice: prod.regular_price ? Number(prod.regular_price) : undefined,
-        rating: 4.9,
-        reviewsCount: 120,
-        volume: '200ml',
-        badge: prod.featured ? 'Best Seller' : undefined,
-        tagline: prod.short_description?.replace(/<[^>]+>/g, '') || 'Nature-led care for hair',
-        description: prod.description?.replace(/<[^>]+>/g, '') || '',
-        images: prod.images?.length ? prod.images.map((img: any) => img.src) : ['/media/alvero-oil-bottle.webp'],
-        inStock: prod.stock_status === 'instock',
-      })) : [];
+      const products = Array.isArray(items) ? items.map((prod: any) => {
+        const imagesList = prod.images?.length
+          ? prod.images.map((img: any) => img.src)
+          : ['/media/alvero-oil-bottle.webp'];
+        const primaryImage = imagesList[0] || '/media/alvero-oil-bottle.webp';
+        
+        const price = Number(prod.price || prod.regular_price || 0);
+        const regularPrice = prod.regular_price ? Number(prod.regular_price) : undefined;
+        const oldPrice = regularPrice && regularPrice > price ? regularPrice : undefined;
+        const isInstock = prod.stock_status === 'instock';
+
+        const shortDesc = prod.short_description
+          ? prod.short_description.replace(/<[^>]+>/g, '').trim()
+          : 'Nature-led care for hair';
+        const fullDesc = prod.description
+          ? prod.description.replace(/<[^>]+>/g, '').trim()
+          : '';
+
+        let discount: string | undefined = undefined;
+        if (oldPrice && oldPrice > price) {
+          const pct = Math.round(((oldPrice - price) / oldPrice) * 100);
+          discount = `${pct}% OFF`;
+        }
+
+        return {
+          id: String(prod.id),
+          slug: prod.slug,
+          name: prod.name,
+          category: prod.categories?.[0]?.name || 'Haircare',
+          categorySlug: prod.categories?.[0]?.slug || 'haircare',
+          price: price,
+          oldPrice: oldPrice,
+          originalPrice: oldPrice,
+          regularPrice: regularPrice,
+          salePrice: price,
+          discount: discount,
+          badge: prod.featured ? 'Best Seller' : undefined,
+          image: primaryImage,
+          images: imagesList,
+          gallery: imagesList,
+          blurb: shortDesc,
+          shortDescription: shortDesc,
+          description: fullDesc,
+          features: ['Lightweight botanical blend', 'Helps nourish hair roots', 'Suitable for regular hair care'],
+          concerns: ['hair-fall', 'dry-hair', 'scalp-care', 'daily-care'],
+          rating: 4.9,
+          reviewCount: 120,
+          reviewsCount: 120,
+          stock: isInstock,
+          inStock: isInstock,
+          sizes: ['200ml']
+        };
+      }) : [];
       return NextResponse.json(products);
     } else {
       return NextResponse.json([], { status: res.status });

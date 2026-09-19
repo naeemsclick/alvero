@@ -1,3 +1,5 @@
+import { normalizeWpProduct, type Product } from "@/lib/data";
+
 const WC_URL = process.env.NEXT_PUBLIC_WORDPRESS_URL || 'https://cms.alvero.com.bd';
 
 export interface OrderPayload {
@@ -81,11 +83,14 @@ export async function fetchWpGuides() {
 }
 
 // Fetch Live Products from WooCommerce REST API via Route Handler
-export async function fetchWpProducts() {
+export async function fetchWpProducts(): Promise<Product[]> {
   try {
     const res = await fetch('/api/products', { cache: 'no-store' });
     if (res.ok) {
-      return await res.json();
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        return items.map((item) => normalizeWpProduct(item));
+      }
     }
   } catch (err) {
     console.error('Error fetching WooCommerce products:', err);

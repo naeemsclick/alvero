@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronRightIcon, LeafIcon, PlayIcon, RefreshIcon, ShieldIcon, StarIcon, TruckIcon } from "@/components/icons";
-import { concernGroups, formatPrice, getProductsByConcern, products, promiseItems, reviews, ugcImages } from "@/lib/data";
+import { concernGroups, formatPrice, promiseItems, reviews, ugcImages, type Product } from "@/lib/data";
+import { fetchWpProducts } from "@/lib/api";
 import { localizedProduct } from "@/lib/localize";
 import { ProductGrid } from "@/components/product-card";
 import { SectionHeading } from "@/components/section-heading";
@@ -32,10 +33,24 @@ const heroSlides = [
   }
 ];
 
+function ProductSectionSkeleton() {
+  return (
+    <div className="product-grid product-grid-tiles" style={{ opacity: 0.6 }}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="product-card product-tile" style={{ height: 320, background: "rgba(0,0,0,0.03)", borderRadius: 12, animation: "pulse 1.5s infinite" }} />
+      ))}
+    </div>
+  );
+}
+
 export function HomePage() {
   const { language, t } = useLanguage();
   const [activeSlide, setActiveSlide] = useState(0);
   const [flash, setFlash] = useState(false);
+  const [wpProducts, setWpProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   const slide = heroSlides[activeSlide];
   const content = slide[language];
 
@@ -49,8 +64,27 @@ export function HomePage() {
     return () => window.clearInterval(timer);
   }, [activeSlide]);
 
-  const bestSellers = products.slice(0, 8);
-  const allTimeBest = [products[5], products[0], products[4], products[3], products[6], products[7]];
+  useEffect(() => {
+    let isMounted = true;
+    fetchWpProducts()
+      .then((items) => {
+        if (isMounted) {
+          setWpProducts(items || []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading products on homepage:", err);
+        if (isMounted) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  const bestSellers = wpProducts.slice(0, 8);
+  const allTimeBest = wpProducts.length > 0 ? wpProducts : [];
 
   return <>
     <section className="hero-section" id="top">
@@ -69,13 +103,41 @@ export function HomePage() {
       <div className="hero-scroll"><span /> scroll to explore</div>
     </section>
 
-    <section className="section section-white" id="shop"><div className="page-shell"><SectionHeading eyebrow={t("home.essentials")} title={t("home.mustHave")} description={t("home.mustHaveDesc")} /><ProductGrid products={bestSellers} variant="tile" /><div className="section-action"><Link className="btn btn-outline-green" href="/category/haircare">{t("home.viewHaircare")} <ArrowRightIcon size={15} /></Link></div></div></section>
+    <section className="section section-white" id="shop">
+      <div className="page-shell">
+        <SectionHeading eyebrow={t("home.essentials")} title={t("home.mustHave")} description={t("home.mustHaveDesc")} />
+        {loading ? (
+          <ProductSectionSkeleton />
+        ) : error ? (
+          <div className="collection-empty">{language === "bn" ? "পণ্য লোড করতে সমস্যা হয়েছে।" : "Failed to load WooCommerce products."}</div>
+        ) : bestSellers.length > 0 ? (
+          <ProductGrid products={bestSellers} variant="tile" />
+        ) : (
+          <div className="collection-empty">{language === "bn" ? "এই মুহূর্তে স্টোরে কোনো পণ্য নেই।" : "No products available in the store right now."}</div>
+        )}
+        <div className="section-action"><Link className="btn btn-outline-green" href="/category/haircare">{t("home.viewHaircare")} <ArrowRightIcon size={15} /></Link></div>
+      </div>
+    </section>
 
-    <section className="section section-mint" id="packages"><div className="page-shell"><SectionHeading eyebrow={t("home.complete")} title={t("home.rituals")} description={t("home.ritualsDesc")} /><ProductGrid products={allTimeBest} /><div className="section-action"><Link className="btn btn-outline-green" href="/category/packages">{t("home.explorePackages")} <ArrowRightIcon size={15} /></Link></div></div></section>
+    <section className="section section-mint" id="packages">
+      <div className="page-shell">
+        <SectionHeading eyebrow={t("home.complete")} title={t("home.rituals")} description={t("home.ritualsDesc")} />
+        {loading ? (
+          <ProductSectionSkeleton />
+        ) : error ? (
+          <div className="collection-empty">{language === "bn" ? "পণ্য লোড করতে সমস্যা হয়েছে।" : "Failed to load WooCommerce products."}</div>
+        ) : allTimeBest.length > 0 ? (
+          <ProductGrid products={allTimeBest} />
+        ) : (
+          <div className="collection-empty">{language === "bn" ? "এই মুহূর্তে স্টোরে কোনো পণ্য নেই।" : "No products available in the store right now."}</div>
+        )}
+        <div className="section-action"><Link className="btn btn-outline-green" href="/category/packages">{t("home.explorePackages")} <ArrowRightIcon size={15} /></Link></div>
+      </div>
+    </section>
 
     <section className="brand-banner-section"><div className="page-shell brand-banner-grid"><div className="brand-banner-copy"><p className="eyebrow eyebrow-light">{t("home.approach")}</p><h2>{t("home.bannerTitle")} <em>{t("home.bannerItalic")}</em></h2><p>{t("home.bannerCopy")}</p><Link className="btn btn-cream" href="/category/packages">{t("home.shopRitual")} <ArrowRightIcon size={15} /></Link></div><div className="brand-banner-image"><img src="/media/alvero-cover.webp" alt="Alvero Hair Solutions — advanced care for stronger, healthier hair" onError={(event) => { event.currentTarget.src = "/media/alvero-cover.webp"; }} /></div></div></section>
 
-    <section className="section section-neutral" id="concerns"><div className="page-shell"><ConcernFinder /></div></section>
+    <section className="section section-neutral" id="concerns"><div className="page-shell"><ConcernFinder products={wpProducts} loading={loading} /></div></section>
     <ResultsSection />
     <section className="promise-strip-section"><div className="page-shell promise-strip">{promiseItems.map((item) => <div key={item.title} className="promise-item"><PromiseIcon name={item.icon} /><div><strong>{language === "bn" ? (item.title === "Botanical Care" ? "বোটানিক্যাল কেয়ার" : item.title === "Fast Delivery" ? "দ্রুত ডেলিভারি" : item.title === "Quality First" ? "কোয়ালিটি ফার্স্ট" : "সহজ সাপোর্ট") : item.title}</strong><span>{language === "bn" ? (item.text === "Nature-inspired ingredients" ? "প্রকৃতি-অনুপ্রাণিত উপাদান" : item.text === "Across Bangladesh" ? "বাংলাদেশজুড়ে" : item.text === "Carefully packed orders" ? "যত্ন নিয়ে প্যাক করা অর্ডার" : "প্রয়োজনে পাশে আছি") : item.text}</span></div></div>)}</div></section>
     <section className="section section-white home-ugc-section"><div className="page-shell"><SectionHeading eyebrow={t("home.madeFor")} title={t("home.careLooks")} description={t("home.careLooksDesc")} /><div className="home-ugc-grid">{ugcImages.slice(0, 4).map((image, index) => <div key={image} className={`home-ugc-item home-ugc-${index + 1}`}><img src={image} alt="Alvero hair care botanical visual" loading="lazy" /></div>)}</div></div></section>
@@ -89,12 +151,19 @@ function PromiseIcon({ name }: { name: string }) {
   return <div className="promise-icon"><LeafIcon size={20} /></div>;
 }
 
-export function ConcernFinder() {
+export function ConcernFinder({ products = [], loading = false }: { products?: Product[]; loading?: boolean }) {
   const [active, setActive] = useState(concernGroups[0].id);
   const { language, t } = useLanguage();
   const concern = concernGroups.find((item) => item.id === active) ?? concernGroups[0];
-  const visible = getProductsByConcern(concern.match).slice(0, 4);
-  return <div className="concern-finder"><SectionHeading eyebrow={t("home.personalised")} title={t("home.findRitual")} description={t("home.findRitualDesc")} /><div className="concern-tabs" role="tablist" aria-label="Hair concerns">{concernGroups.map((item) => <button key={item.id} className={active === item.id ? "active" : ""} type="button" onClick={() => setActive(item.id)}>{language === "bn" ? ({ "Hair Fall": "চুল পড়া", "Dry Hair": "শুষ্ক চুল", "Scalp Care": "স্ক্যাল্প কেয়ার", "Hair Growth": "চুলের বৃদ্ধি", "Daily Care": "প্রতিদিনের যত্ন" } as Record<string, string>)[item.label] : item.label}</button>)}</div><div className="concern-products" key={active}><ProductGrid products={visible} variant="compact" /></div><div className="section-action"><Link className="text-link" href="/category/haircare">{t("home.exploreAll")} <ArrowRightIcon size={14} /></Link></div></div>;
+  
+  const visible = products.filter((product) => {
+    if (!product.concerns || !product.concerns.length) return true;
+    return product.concerns.includes(concern.match);
+  }).slice(0, 4);
+
+  const displayProducts = visible.length > 0 ? visible : products.slice(0, 4);
+
+  return <div className="concern-finder"><SectionHeading eyebrow={t("home.personalised")} title={t("home.findRitual")} description={t("home.findRitualDesc")} /><div className="concern-tabs" role="tablist" aria-label="Hair concerns">{concernGroups.map((item) => <button key={item.id} className={active === item.id ? "active" : ""} type="button" onClick={() => setActive(item.id)}>{language === "bn" ? ({ "Hair Fall": "চুল পড়া", "Dry Hair": "শুষ্ক চুল", "Scalp Care": "স্ক্যাল্প কেয়ার", "Hair Growth": "চুলের বৃদ্ধি", "Daily Care": "প্রতিদিনের যত্ন" } as Record<string, string>)[item.label] : item.label}</button>)}</div><div className="concern-products" key={active}>{loading ? <ProductSectionSkeleton /> : displayProducts.length > 0 ? <ProductGrid products={displayProducts} variant="compact" /> : <div className="collection-empty">{language === "bn" ? "কোনো পণ্য পাওয়া যায়নি।" : "No products found."}</div>}</div><div className="section-action"><Link className="text-link" href="/category/haircare">{t("home.exploreAll")} <ArrowRightIcon size={14} /></Link></div></div>;
 }
 
 function BeforeAfterSlider() {
@@ -116,7 +185,19 @@ export function ReviewWall({ title, limit = reviews.length }: { title?: string; 
   return <div className="review-wall"><div className="review-wall-head"><h2>{title ?? (language === "bn" ? "কাস্টমার স্টোরি" : "What our customers say")}</h2><div className="wall-rating"><strong>4.8</strong><span>★★★★★</span><small>{language === "bn" ? "কাস্টমার স্টোরি" : "Customer stories"}</small></div></div><div className="rating-bars"><div className="rating-bars-score"><strong>4.8</strong><span>{language === "bn" ? "গড় রেটিং" : "Average rating"}</span></div><div className="bars">{[5, 4, 3, 2, 1].map((star, index) => <div className="rating-bar" key={star}><span>{star}★</span><i><b style={{ width: `${[92, 62, 24, 10, 5][index]}%` }} /></i><small>{[98, 65, 20, 8, 4][index]}</small></div>)}</div></div><div className="review-wall-grid">{visible.map((review) => <article className="wall-review" key={review.name}><div className="wall-review-head"><span className="review-avatar" style={{ background: review.accent }}>{review.initials}</span><div><strong>{review.name}</strong><span className="verified-badge"><CheckIcon size={10} /> Verified</span><span className="review-date">{review.date}</span></div><span className="stars">{"★".repeat(review.rating)}</span></div><p>{review.text}</p><span className="story-label">{language === "bn" ? "কাস্টমার স্টোরি" : "Customer story"}</span></article>)}</div></div>;
 }
 
-export function RelatedProducts({ items = products.slice(0, 5) }: { items?: typeof products }) {
+export function RelatedProducts({ items }: { items?: Product[] }) {
+  const [list, setList] = useState<Product[]>(items || []);
   const { language } = useLanguage();
-  return <div className="related-row">{items.map((product) => <Link className="related-card" href={`/product/${product.slug}`} key={product.slug}><img src={product.image} alt="" /><span>{localizedProduct(product, language).name}</span><strong>{formatPrice(product.price)}</strong></Link>)}</div>;
+
+  useEffect(() => {
+    if (!items || items.length === 0) {
+      fetchWpProducts().then((data) => setList((data || []).slice(0, 5)));
+    } else {
+      setList(items);
+    }
+  }, [items]);
+
+  if (!list.length) return null;
+
+  return <div className="related-row">{list.map((product) => <Link className="related-card" href={`/product/${product.slug}`} key={product.slug}><img src={product.image || product.images?.[0] || '/media/alvero-oil-bottle.webp'} alt="" /><span>{localizedProduct(product, language).name}</span><strong>{formatPrice(product.price)}</strong></Link>)}</div>;
 }

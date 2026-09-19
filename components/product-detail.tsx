@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, CheckIcon, ClockIcon, ChevronRightIcon, MinusIcon, PlusIcon, RefreshIcon, ShieldIcon, StarIcon, TruckIcon } from "@/components/icons";
-import { formatPrice, products, reviews, type Product } from "@/lib/data";
+import { formatPrice, reviews, type Product } from "@/lib/data";
 import { localizedProduct } from "@/lib/localize";
 import { ReviewWall, RelatedProducts } from "@/components/home-sections";
 import { useCart } from "@/components/cart-context";
 import { useLanguage } from "@/components/language-context";
+import { fetchWpProducts } from "@/lib/api";
 
 function CategoryName({ category }: { category: string }) {
   const { language } = useLanguage();
@@ -38,10 +39,10 @@ function SaleTimer() {
 }
 
 function ProductGallery({ product }: { product: Product }) {
-  const images = product.gallery?.length ? product.gallery : [product.image];
+  const images = product.gallery?.length ? product.gallery : (product.images?.length ? product.images : [product.image]);
   const [active, setActive] = useState(0);
   const { language } = useLanguage();
-  return <div className="product-gallery"><div className="product-gallery-main"><img src={images[active]} alt={`${localizedProduct(product, language).name} — ${language === "bn" ? "ছবি" : "image"} ${active + 1}`} /></div><div className="product-gallery-thumbs">{images.map((image, index) => <button type="button" className={active === index ? "active" : ""} key={image} onClick={() => setActive(index)}><img src={image} alt="" /></button>)}</div></div>;
+  return <div className="product-gallery"><div className="product-gallery-main"><img src={images[active] || '/media/alvero-oil-bottle.webp'} alt={`${localizedProduct(product, language).name} — ${language === "bn" ? "ছবি" : "image"} ${active + 1}`} /></div>{images.length > 1 && <div className="product-gallery-thumbs">{images.map((image, index) => <button type="button" className={active === index ? "active" : ""} key={image} onClick={() => setActive(index)}><img src={image} alt="" /></button>)}</div>}</div>;
 }
 
 function PurchasePanel({ product }: { product: Product }) {
@@ -52,16 +53,18 @@ function PurchasePanel({ product }: { product: Product }) {
   const copy = localizedProduct(product, language);
   const decrease = language === "bn" ? "পরিমাণ কমান" : "Decrease quantity";
   const increase = language === "bn" ? "পরিমাণ বাড়ান" : "Increase quantity";
+  const inStock = product.stock !== undefined ? product.stock : (product.inStock !== undefined ? product.inStock : true);
+
   return <>
-    <div className="product-card-topline"><span><CategoryName category={product.category} /></span><span className="card-stars"><StarIcon size={12} /> {product.rating.toFixed(1)} ({product.reviewCount})</span></div>
+    <div className="product-card-topline"><span><CategoryName category={product.category} /></span><span className="card-stars"><StarIcon size={12} /> {(product.rating || 4.9).toFixed(1)} ({product.reviewCount || 120})</span></div>
     <h1>{copy.name}</h1>
     <p className="product-blurb">{copy.blurb}</p>
     <div className="price-row"><span className="price">{formatPrice(product.price)}</span>{product.oldPrice && <span className="old-price">{formatPrice(product.oldPrice)}</span>}{product.discount && <span className="discount-inline">{product.discount}</span>}</div>
     <SaleTimer />
-    <div className="purchase-row"><div className="quantity-control"><button type="button" aria-label={decrease} onClick={() => setQuantity((value) => Math.max(1, value - 1))}><MinusIcon size={14} /></button><span>{quantity}</span><button type="button" aria-label={increase} onClick={() => setQuantity((value) => value + 1)}><PlusIcon size={14} /></button></div><button type="button" className="add-to-cart" onClick={() => add(product, quantity)}>{t("product.add")} <ArrowRightIcon size={14} /></button></div>
-    <button type="button" className="btn btn-primary buy-now" onClick={() => { add(product, quantity); router.push("/cart"); }}>{t("product.buyNow")} <ArrowRightIcon size={15} /></button>
+    <div className="purchase-row"><div className="quantity-control"><button type="button" aria-label={decrease} onClick={() => setQuantity((value) => Math.max(1, value - 1))}><MinusIcon size={14} /></button><span>{quantity}</span><button type="button" aria-label={increase} onClick={() => setQuantity((value) => value + 1)}><PlusIcon size={14} /></button></div><button type="button" className="add-to-cart" disabled={!inStock} onClick={() => add(product, quantity)}>{inStock ? t("product.add") : t("product.soldOut")} <ArrowRightIcon size={14} /></button></div>
+    <button type="button" className="btn btn-primary buy-now" disabled={!inStock} onClick={() => { if (inStock) { add(product, quantity); router.push("/cart"); } }}>{t("product.buyNow")} <ArrowRightIcon size={15} /></button>
     <div className="trust-row"><span><TruckIcon size={14} /> {t("product.cash")}</span><span><ShieldIcon size={14} /> {t("product.quality")}</span><span><RefreshIcon size={14} /> {t("product.support")}</span></div>
-    <details className="description-details" open><summary className="description-accordion">{t("product.description")} <PlusIcon size={15} /></summary><div className="product-description"><p>{copy.description}</p><ul className="feature-list">{copy.features.map((feature) => <li key={feature}><CheckIcon size={14} />{feature}</li>)}</ul></div></details>
+    <details className="description-details" open><summary className="description-accordion">{t("product.description")} <PlusIcon size={15} /></summary><div className="product-description"><p>{copy.description || copy.blurb}</p>{copy.features?.length > 0 && <ul className="feature-list">{copy.features.map((feature) => <li key={feature}><CheckIcon size={14} />{feature}</li>)}</ul>}</div></details>
   </>;
 }
 
@@ -76,14 +79,70 @@ function ServiceStrip() {
   return <div className="product-service-strip"><div><TruckIcon size={17} /><span><strong>{items[0][0]}</strong>{items[0][1]}</span></div><div><RefreshIcon size={17} /><span><strong>{items[1][0]}</strong>{items[1][1]}</span></div><div><ClockIcon size={17} /><span><strong>{items[2][0]}</strong>{items[2][1]}</span></div><div><ShieldIcon size={17} /><span><strong>{items[3][0]}</strong>{items[3][1]}</span></div></div>;
 }
 
-export function ProductDetail({ product }: { product: Product }) {
-  const related = useMemo(() => products.filter((item) => item.slug !== product.slug).slice(0, 5), [product.slug]);
+export function ProductDetail({ slug, product: initialProduct }: { slug?: string; product?: Product }) {
+  const [product, setProduct] = useState<Product | null>(initialProduct || null);
+  const [loading, setLoading] = useState(!initialProduct);
+  const [error, setError] = useState(false);
   const { language, t } = useLanguage();
+
+  useEffect(() => {
+    if (!initialProduct && slug) {
+      let isMounted = true;
+      setLoading(true);
+      setError(false);
+      fetchWpProducts()
+        .then((items) => {
+          if (isMounted) {
+            const found = items.find((p) => p.slug === slug || String(p.id) === slug);
+            if (found) {
+              setProduct(found);
+            } else {
+              setError(true);
+            }
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.error("Error loading product detail:", err);
+          if (isMounted) {
+            setError(true);
+            setLoading(false);
+          }
+        });
+      return () => { isMounted = false; };
+    }
+  }, [slug, initialProduct]);
+
+  if (loading) {
+    return (
+      <div className="product-page" style={{ opacity: 0.6, padding: "80px 0" }}>
+        <div className="page-shell">
+          <div style={{ height: 400, background: "rgba(0,0,0,0.04)", borderRadius: 16 }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="product-page" style={{ padding: "100px 0", textAlign: "center" }}>
+        <div className="page-shell">
+          <h2>{language === "bn" ? "পণ্যটি পাওয়া যায়নি" : "Product Not Found"}</h2>
+          <p style={{ marginTop: 12, color: "#666" }}>{language === "bn" ? "আপনি যে পণ্যটি খুঁজছেন তা স্টোরে নেই।" : "The product you are looking for is not available in our store."}</p>
+          <div style={{ marginTop: 24 }}>
+            <Link className="btn btn-primary" href="/category/haircare">{language === "bn" ? "সব পণ্য দেখুন" : "Browse All Products"} <ArrowRightIcon size={14} /></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const copy = localizedProduct(product, language);
+
   return <>
-    <div className="product-page"><div className="page-shell"><div className="breadcrumb"><Link href="/">{language === "bn" ? "হোম" : "Home"}</Link><ChevronRightIcon size={13} /><Link href={`/category/${product.categorySlug}`}><CategoryName category={product.category} /></Link><ChevronRightIcon size={13} /><span>{copy.name}</span></div><div className="product-hero"><ProductGallery product={product} /><div className="product-info"><PurchasePanel product={product} /></div></div><div className="product-trust"><ServiceStrip /></div></div></div>
-    <section className="product-reviews-section" id="reviews"><div className="page-shell"><div className="section-heading"><p className="eyebrow">{t("product.realStories")}</p><h2>{t("product.customerReviews")}</h2><p className="section-description">{language === "bn" ? "সামাজিক প্রমাণ কীভাবে প্রোডাক্ট অভিজ্ঞতার সঙ্গে সুন্দরভাবে যুক্ত হতে পারে—কিছু ডেমো স্টোরি।" : "A few demo customer stories to show how social proof can sit naturally inside the product experience."}</p></div><ReviewWall limit={8} /><ReviewHighlights /><div className="review-section-action"><Link className="btn btn-outline-green" href="#reviews">{t("product.writeReview")} <ArrowRightIcon size={14} /></Link></div></div></section>
-    <section className="product-related-section"><div className="page-shell"><div className="related-head"><div><p className="eyebrow">{t("product.complete")}</p><h2>{t("product.youLike")}</h2></div><Link className="text-link" href="/category/haircare">{t("product.viewAll")} <ArrowRightIcon size={14} /></Link></div><RelatedProducts items={related} /></div></section>
+    <div className="product-page"><div className="page-shell"><div className="breadcrumb"><Link href="/">{language === "bn" ? "হোম" : "Home"}</Link><ChevronRightIcon size={13} /><Link href={`/category/${product.categorySlug || 'haircare'}`}><CategoryName category={product.category} /></Link><ChevronRightIcon size={13} /><span>{copy.name}</span></div><div className="product-hero"><ProductGallery product={product} /><div className="product-info"><PurchasePanel product={product} /></div></div><div className="product-trust"><ServiceStrip /></div></div></div>
+    <section className="product-reviews-section" id="reviews"><div className="page-shell"><div className="section-heading"><p className="eyebrow">{t("product.realStories")}</p><h2>{t("product.customerReviews")}</h2><p className="section-description">{language === "bn" ? "সামাজিক প্রমাণ কীভাবে প্রোডাক্ট অভিজ্ঞতার সঙ্গে সুন্দরভাবে যুক্ত হতে পারে—কিছু কাস্টমার স্টোরি।" : "Real stories from customer care experiences."}</p></div><ReviewWall limit={8} /><ReviewHighlights /><div className="review-section-action"><Link className="btn btn-outline-green" href="#reviews">{t("product.writeReview")} <ArrowRightIcon size={14} /></Link></div></div></section>
+    <section className="product-related-section"><div className="page-shell"><div className="related-head"><div><p className="eyebrow">{t("product.complete")}</p><h2>{t("product.youLike")}</h2></div><Link className="text-link" href="/category/haircare">{t("product.viewAll")} <ArrowRightIcon size={14} /></Link></div><RelatedProducts /></div></section>
     <section className="ugc-section"><div className="page-shell"><div className="section-heading"><p className="eyebrow">{language === "bn" ? "বাস্তব পণ্য, বাস্তব যত্ন" : "Real products, real care"}</p><h2>{language === "bn" ? "Alvero হেয়ার কেয়ার লাভারদের পছন্দ" : "Trusted by Alvero hair-care lovers"}</h2></div><div className="ugc-wall">{["/media/complete-combo.webp", "/media/before-after.webp", "/media/hair-oil-botanical.webp", "/media/shampoo.webp", "/media/hair-toner.webp", "/media/hair-care-benefits.webp"].map((image) => <div className="ugc-wall-item" key={image}><img src={image} alt="Alvero hair care story" loading="lazy" /></div>)}</div></div></section>
   </>;
 }
