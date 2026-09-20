@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/components/cart-context";
 import { LanguageProvider } from "@/components/language-context";
+import { SettingsProvider } from "@/components/settings-context";
 import { SiteHeader, CartDrawer, SiteFooter } from "@/components/site-chrome";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://alvero.pages.dev";
@@ -54,14 +55,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <LanguageProvider>
-          <CartProvider>
-            <SiteHeader />
-            <main>{children}</main>
-            <SiteFooter />
-            <CartDrawer />
-          </CartProvider>
-        </LanguageProvider>
+        <SettingsProvider>
+          <LanguageProvider>
+            <CartProvider>
+              <SiteHeader />
+              <main>{children}</main>
+              <SiteFooter />
+              <CartDrawer />
+            </CartProvider>
+          </LanguageProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

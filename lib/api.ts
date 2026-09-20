@@ -47,17 +47,81 @@ export async function trackOrdersByPhone(phone: string) {
   return await res.json();
 }
 
+export interface StoreSettings {
+  site: {
+    logo_url: string;
+    brand_name: string;
+    descriptor: string;
+    phone: string;
+    whatsapp_url: string;
+    email: string;
+    address: string;
+    social: {
+      facebook: string;
+      instagram: string;
+      tiktok: string;
+    };
+    footer: {
+      tagline_en: string;
+      tagline_bn: string;
+      description_en: string;
+      description_bn: string;
+      copyright: string;
+    };
+  };
+}
+
+export const DEFAULT_STORE_SETTINGS: StoreSettings = {
+  site: {
+    logo_url: '/media/alvero-mark.png',
+    brand_name: 'ALVERO',
+    descriptor: 'HAIR SOLUTIONS',
+    phone: '+88 01811899068',
+    whatsapp_url: 'https://wa.me/8801811899068',
+    email: 'alverohairsolutions@gmail.com',
+    address: 'Dhaka, Bangladesh, 1212',
+    social: {
+      facebook: 'https://www.facebook.com/AlveroHairSolutions',
+      instagram: 'https://www.instagram.com/alverohairsolutions',
+      tiktok: 'https://www.tiktok.com/@alverohairsolutions',
+    },
+    footer: {
+      tagline_en: 'We believe healthy hair begins with the right care.',
+      tagline_bn: 'সঠিক যত্নে স্বাস্থ্যকর চুলের শুরু।',
+      description_en: 'At Alvero Hair Solutions, we believe healthy hair begins with the right care. Our mission is to provide effective, high-quality hair solutions that restore confidence and enhance natural beauty.',
+      description_bn: 'Alvero Hair Solutions-এ আমরা বিশ্বাস করি সঠিক যত্নেই স্বাস্থ্যকর চুলের শুরু। আত্মবিশ্বাস ফিরিয়ে আনতে ও প্রাকৃতিক সৌন্দর্য বাড়াতে আমাদের হেয়ার কেয়ার সমাধান তৈরি।',
+      copyright: '© 2026 Alvero Hair Solutions. All rights reserved.',
+    },
+  },
+};
+
 // Fetch Site Settings from WordPress Admin (Hero Banner, Announcement, Pixels, Links)
-export async function fetchStoreSettings() {
+export async function fetchStoreSettings(): Promise<StoreSettings> {
   try {
     const res = await fetch(`${WC_URL}/wp-json/alvero/v1/settings`, { cache: 'no-store' });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      if (data && data.site) {
+        return {
+          site: {
+            ...DEFAULT_STORE_SETTINGS.site,
+            ...data.site,
+            social: {
+              ...DEFAULT_STORE_SETTINGS.site.social,
+              ...(data.site.social || {})
+            },
+            footer: {
+              ...DEFAULT_STORE_SETTINGS.site.footer,
+              ...(data.site.footer || {})
+            }
+          }
+        };
+      }
     }
   } catch (err) {
     console.error('Error fetching WordPress store settings:', err);
   }
-  return null;
+  return DEFAULT_STORE_SETTINGS;
 }
 
 // Fetch Care Guides / Blog Posts from WordPress Admin Posts

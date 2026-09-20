@@ -27,6 +27,7 @@ import { localizedProduct } from "@/lib/localize";
 import { useCart } from "@/components/cart-context";
 import { LanguageToggle, useLanguage } from "@/components/language-context";
 import { fetchWpProducts } from "@/lib/api";
+import { useSettings } from "@/components/settings-context";
 
 const navGroups = [
   {
@@ -66,13 +67,18 @@ const announcements = {
 };
 
 function LogoLockup({ dark = false, compact = false }: { dark?: boolean; compact?: boolean }) {
+  const { settings } = useSettings();
+  const logoUrl = settings?.site?.logo_url || "/media/alvero-mark.png";
+  const brandName = settings?.site?.brand_name || "ALVERO";
+  const descriptor = settings?.site?.descriptor || "HAIR SOLUTIONS";
+
   return (
     <span className={`logo-lockup ${dark ? "logo-lockup-dark" : ""} ${compact ? "logo-lockup-compact" : ""}`}>
-      <img src="/media/alvero-mark.png" alt="" aria-hidden="true" />
+      <img src={logoUrl} alt="" aria-hidden="true" />
       <span className="logo-copy">
-        <strong>ALVERO</strong>
+        <strong>{brandName}</strong>
         <span className="logo-divider">|</span>
-        <small>HAIR SOLUTIONS</small>
+        <small>{descriptor}</small>
       </span>
     </span>
   );
@@ -91,6 +97,12 @@ export function SiteHeader() {
   const [search, setSearch] = useState("");
   const [liveProducts, setLiveProducts] = useState<Product[]>([]);
   const { language, t } = useLanguage();
+  const { settings } = useSettings();
+
+  const phone = settings?.site?.phone || brand.phone;
+  const facebookUrl = settings?.site?.social?.facebook || brand.facebook;
+  const instagramUrl = settings?.site?.social?.instagram || brand.instagram;
+  const tiktokUrl = settings?.site?.social?.tiktok || brand.tiktok;
 
   useEffect(() => {
     const timer = window.setInterval(() => setAnnouncement((current) => (current + 1) % announcements.en.length), 5200);
@@ -120,8 +132,8 @@ export function SiteHeader() {
         <div className="announcement-bar"><span key={`${language}-${announcement}`} className="announcement-text">{announcements[language][announcement]}</span></div>
         <div className="header-wrap">
           <div className="utility-bar">
-            <a className="customer-care" href={`tel:${brand.phone.replace(/\s/g, "")}`} aria-label={`${t("header.customerCare")}: ${brand.phone}`}><span aria-hidden="true"><HeadsetIcon size={14} /></span><strong>{brand.phone}</strong></a>
-            <div className="social-find"><span>{t("header.findUs")}</span><a href={brand.facebook} target="_blank" rel="noreferrer" aria-label="Facebook"><FacebookIcon size={14} /></a><a href={brand.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><InstagramIcon size={14} /></a><a href={brand.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok"><TikTokIcon size={14} /></a><LanguageToggle compact /></div>
+            <a className="customer-care" href={`tel:${phone.replace(/\s/g, "")}`} aria-label={`${t("header.customerCare")}: ${phone}`}><span aria-hidden="true"><HeadsetIcon size={14} /></span><strong>{phone}</strong></a>
+            <div className="social-find"><span>{t("header.findUs")}</span><a href={facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook"><FacebookIcon size={14} /></a><a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Instagram"><InstagramIcon size={14} /></a><a href={tiktokUrl} target="_blank" rel="noreferrer" aria-label="TikTok"><TikTokIcon size={14} /></a><LanguageToggle compact /></div>
           </div>
           <div className="mobile-header-pill">
             <button className="icon-button menu-trigger" type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}><MenuIcon size={20} /></button>
@@ -175,5 +187,84 @@ export function CartDrawer() {
 
 export function SiteFooter() {
   const { language, t } = useLanguage();
-  return <footer className="site-footer"><div className="footer-gold-line" /><div className="footer-inner"><div className="footer-branding"><LogoLockup dark /><p>{language === "bn" ? "সঠিক যত্নে স্বাস্থ্যকর চুলের শুরু।" : brand.tagline}</p></div><div className="footer-grid"><div className="footer-intro"><p>{language === "bn" ? "Alvero Hair Solutions-এ আমরা বিশ্বাস করি সঠিক যত্নেই স্বাস্থ্যকর চুলের শুরু। আত্মবিশ্বাস ফিরিয়ে আনতে ও প্রাকৃতিক সৌন্দর্য বাড়াতে আমাদের হেয়ার কেয়ার সমাধান তৈরি।" : brand.description}</p><div className="footer-socials" aria-label="Social media links"><a href={brand.facebook} target="_blank" rel="noreferrer" aria-label="Alvero on Facebook"><FacebookIcon size={16} /></a><a href={brand.instagram} target="_blank" rel="noreferrer" aria-label="Alvero on Instagram"><InstagramIcon size={16} /></a><a href={brand.tiktok} target="_blank" rel="noreferrer" aria-label="Alvero on TikTok"><TikTokIcon size={16} /></a></div></div><div><h3>{t("footer.shop")}</h3><ul><li><Link href="/category/haircare">{t("nav.haircare")}</Link></li><li><Link href="/category/hair-oil">{t("nav.hairOil")}</Link></li><li><Link href="/category/hair-toner">{t("nav.hairToner")}</Link></li><li><Link href="/category/shampoo">{t("nav.shampoo")}</Link></li><li><Link href="/category/packages">{t("nav.packages")}</Link></li></ul></div><div><h3>{t("footer.help")}</h3><ul><li><Link href="/track">{t("nav.track")}</Link></li><li><Link href="/cart">{language === "bn" ? "কার্ট ও চেকআউট" : "Cart & checkout"}</Link></li><li><Link href="/#reviews">{language === "bn" ? "কাস্টমার স্টোরি" : "Customer stories"}</Link></li><li><Link href="/refer-win">{t("nav.refer")}</Link></li><li><Link href="/guide">{t("nav.careGuide")}</Link></li></ul></div><div><h3>{t("footer.promise")}</h3><ul className="promise-list"><li><span><LeafIcon size={14} /></span>{t("footer.nature")}</li><li><span><TruckIcon size={14} /></span>{t("footer.delivery")}</li><li><span><ShieldIcon size={14} /></span>{t("footer.quality")}</li><li><span><RefreshIcon size={14} /></span>{t("footer.support")}</li></ul></div></div><div className="footer-contact-row"><a href={`tel:${brand.phone.replace(/\s/g, "")}`}><span>{t("footer.call")}</span><strong>{brand.phone}</strong></a><a href={brand.whatsapp} target="_blank" rel="noreferrer"><span>WhatsApp</span><strong className="contact-value"><WhatsAppIcon size={13} /> {brand.phone}</strong></a><a href={`mailto:${brand.email}`}><span>{t("footer.email")}</span><strong>{brand.email}</strong></a><a href="https://www.google.com/maps/search/?api=1&query=Dhaka%20Bangladesh%201212" target="_blank" rel="noreferrer"><span>{t("footer.find")}</span><strong>{brand.address}</strong></a></div></div><div className="footer-bottom"><span>© 2026 Alvero Hair Solutions. All rights reserved.</span><span>{t("footer.created")} <a href={brand.creatorUrl} target="_blank" rel="noreferrer"><FacebookIcon size={13} /> {brand.creatorName}</a></span></div></footer>;
+  const { settings } = useSettings();
+
+  const phone = settings?.site?.phone || brand.phone;
+  const whatsappUrl = settings?.site?.whatsapp_url || brand.whatsapp;
+  const email = settings?.site?.email || brand.email;
+  const address = settings?.site?.address || brand.address;
+  const facebookUrl = settings?.site?.social?.facebook || brand.facebook;
+  const instagramUrl = settings?.site?.social?.instagram || brand.instagram;
+  const tiktokUrl = settings?.site?.social?.tiktok || brand.tiktok;
+
+  const tagline = language === "bn"
+    ? (settings?.site?.footer?.tagline_bn || "সঠিক যত্নে স্বাস্থ্যকর চুলের শুরু।")
+    : (settings?.site?.footer?.tagline_en || brand.tagline);
+
+  const description = language === "bn"
+    ? (settings?.site?.footer?.description_bn || "Alvero Hair Solutions-এ আমরা বিশ্বাস করি সঠিক যত্নেই স্বাস্থ্যকর চুলের শুরু। আত্মবিশ্বাস ফিরিয়ে আনতে ও প্রাকৃতিক সৌন্দর্য বাড়াতে আমাদের হেয়ার কেয়ার সমাধান তৈরি।")
+    : (settings?.site?.footer?.description_en || brand.description);
+
+  const copyright = settings?.site?.footer?.copyright || `© 2026 ${settings?.site?.brand_name || 'Alvero Hair Solutions'}. All rights reserved.`;
+
+  return (
+    <footer className="site-footer">
+      <div className="footer-gold-line" />
+      <div className="footer-inner">
+        <div className="footer-branding">
+          <LogoLockup dark />
+          <p>{tagline}</p>
+        </div>
+        <div className="footer-grid">
+          <div className="footer-intro">
+            <p>{description}</p>
+            <div className="footer-socials" aria-label="Social media links">
+              <a href={facebookUrl} target="_blank" rel="noreferrer" aria-label="Alvero on Facebook"><FacebookIcon size={16} /></a>
+              <a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Alvero on Instagram"><InstagramIcon size={16} /></a>
+              <a href={tiktokUrl} target="_blank" rel="noreferrer" aria-label="Alvero on TikTok"><TikTokIcon size={16} /></a>
+            </div>
+          </div>
+          <div>
+            <h3>{t("footer.shop")}</h3>
+            <ul>
+              <li><Link href="/category/haircare">{t("nav.haircare")}</Link></li>
+              <li><Link href="/category/hair-oil">{t("nav.hairOil")}</Link></li>
+              <li><Link href="/category/hair-toner">{t("nav.hairToner")}</Link></li>
+              <li><Link href="/category/shampoo">{t("nav.shampoo")}</Link></li>
+              <li><Link href="/category/packages">{t("nav.packages")}</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3>{t("footer.help")}</h3>
+            <ul>
+              <li><Link href="/track">{t("nav.track")}</Link></li>
+              <li><Link href="/cart">{language === "bn" ? "কার্ট ও চেকআউট" : "Cart & checkout"}</Link></li>
+              <li><Link href="/#reviews">{language === "bn" ? "কাস্টমার স্টোরি" : "Customer stories"}</Link></li>
+              <li><Link href="/refer-win">{t("nav.refer")}</Link></li>
+              <li><Link href="/guide">{t("nav.careGuide")}</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3>{t("footer.promise")}</h3>
+            <ul className="promise-list">
+              <li><span><LeafIcon size={14} /></span>{t("footer.nature")}</li>
+              <li><span><TruckIcon size={14} /></span>{t("footer.delivery")}</li>
+              <li><span><ShieldIcon size={14} /></span>{t("footer.quality")}</li>
+              <li><span><RefreshIcon size={14} /></span>{t("footer.support")}</li>
+            </ul>
+          </div>
+        </div>
+        <div className="footer-contact-row">
+          <a href={`tel:${phone.replace(/\s/g, "")}`}><span>{t("footer.call")}</span><strong>{phone}</strong></a>
+          <a href={whatsappUrl} target="_blank" rel="noreferrer"><span>WhatsApp</span><strong className="contact-value"><WhatsAppIcon size={13} /> {phone}</strong></a>
+          <a href={`mailto:${email}`}><span>{t("footer.email")}</span><strong>{email}</strong></a>
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer"><span>{t("footer.find")}</span><strong>{address}</strong></a>
+        </div>
+      </div>
+      <div className="footer-bottom">
+        <span>{copyright}</span>
+        <span>{t("footer.created")} <a href={brand.creatorUrl} target="_blank" rel="noreferrer"><FacebookIcon size={13} /> {brand.creatorName}</a></span>
+      </div>
+    </footer>
+  );
 }
