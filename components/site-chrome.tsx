@@ -104,10 +104,23 @@ export function SiteHeader() {
   const instagramUrl = settings?.site?.social?.instagram || brand.instagram;
   const tiktokUrl = settings?.site?.social?.tiktok || brand.tiktok;
 
+  const activeAnnouncements = useMemo(() => {
+    const list = settings?.navigation?.announcements || [];
+    return list.filter((item) => item.enabled !== false);
+  }, [settings?.navigation?.announcements]);
+
+  const activeMenu = useMemo(() => {
+    const list = settings?.navigation?.main_menu || [];
+    return list.filter((item) => item.enabled !== false);
+  }, [settings?.navigation?.main_menu]);
+
   useEffect(() => {
-    const timer = window.setInterval(() => setAnnouncement((current) => (current + 1) % announcements.en.length), 5200);
+    if (!activeAnnouncements.length) return;
+    const timer = window.setInterval(() => {
+      setAnnouncement((current) => (current + 1) % activeAnnouncements.length);
+    }, 5200);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [activeAnnouncements.length]);
 
   useEffect(() => {
     if (searchOpen && !liveProducts.length) {
@@ -126,39 +139,184 @@ export function SiteHeader() {
     setSearchOpen(false);
   }
 
+  const currentAnnouncementText = activeAnnouncements.length > 0
+    ? (language === "bn"
+        ? activeAnnouncements[announcement % activeAnnouncements.length]?.text_bn || activeAnnouncements[announcement % activeAnnouncements.length]?.text_en
+        : activeAnnouncements[announcement % activeAnnouncements.length]?.text_en)
+    : "";
+
   return (
     <>
       <header className="site-header">
-        <div className="announcement-bar"><span key={`${language}-${announcement}`} className="announcement-text">{announcements[language][announcement]}</span></div>
+        {currentAnnouncementText && (
+          <div className="announcement-bar">
+            <span key={`${language}-${announcement}`} className="announcement-text">
+              {currentAnnouncementText}
+            </span>
+          </div>
+        )}
         <div className="header-wrap">
           <div className="utility-bar">
-            <a className="customer-care" href={`tel:${phone.replace(/\s/g, "")}`} aria-label={`${t("header.customerCare")}: ${phone}`}><span aria-hidden="true"><HeadsetIcon size={14} /></span><strong>{phone}</strong></a>
-            <div className="social-find"><span>{t("header.findUs")}</span><a href={facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook"><FacebookIcon size={14} /></a><a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Instagram"><InstagramIcon size={14} /></a><a href={tiktokUrl} target="_blank" rel="noreferrer" aria-label="TikTok"><TikTokIcon size={14} /></a><LanguageToggle compact /></div>
+            <a className="customer-care" href={`tel:${phone.replace(/\s/g, "")}`} aria-label={`${t("header.customerCare")}: ${phone}`}>
+              <span aria-hidden="true"><HeadsetIcon size={14} /></span>
+              <strong>{phone}</strong>
+            </a>
+            <div className="social-find">
+              <span>{t("header.findUs")}</span>
+              <a href={facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook"><FacebookIcon size={14} /></a>
+              <a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Instagram"><InstagramIcon size={14} /></a>
+              <a href={tiktokUrl} target="_blank" rel="noreferrer" aria-label="TikTok"><TikTokIcon size={14} /></a>
+              <LanguageToggle compact />
+            </div>
           </div>
           <div className="mobile-header-pill">
-            <button className="icon-button menu-trigger" type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}><MenuIcon size={20} /></button>
-            <Link href="/" aria-label="Alvero Hair Solutions home" onClick={closePanels}><LogoLockup compact /></Link>
+            <button className="icon-button menu-trigger" type="button" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+              <MenuIcon size={20} />
+            </button>
+            <Link href="/" aria-label="Alvero Hair Solutions home" onClick={closePanels}>
+              <LogoLockup compact />
+            </Link>
             <CartButton />
           </div>
 
           <div className="desktop-header-pill">
-            <Link href="/" className="brand-link" aria-label="Alvero Hair Solutions home" onClick={closePanels}><LogoLockup /></Link>
+            <Link href="/" className="brand-link" aria-label="Alvero Hair Solutions home" onClick={closePanels}>
+              <LogoLockup />
+            </Link>
             <nav className="desktop-nav" aria-label="Primary navigation">
-              {navGroups.map((group) => <div className="nav-group" key={group.key}><Link href={group.href} className="nav-link">{t(group.key)}<ChevronDownIcon size={12} /></Link><div className="nav-dropdown">{group.children.map(([label, href]) => <Link href={href} key={label} onClick={closePanels}>{t(label)}</Link>)}</div></div>)}
-              <Link href="/category/hair-oil" className="nav-link">{t("nav.hairOils")}</Link>
-              <Link href="/category/packages" className="nav-link">{t("nav.packages")}</Link>
-              <Link href="/track" className="nav-link">{t("nav.track")}</Link>
-              <Link href="/refer-win" className="nav-link nav-link-accent">{t("nav.refer")}</Link>
-              <Link href="/#concerns" className="nav-link nav-link-accent strong">{t("nav.findCare")}</Link>
+              {activeMenu.map((item) => {
+                const label = language === "bn" ? (item.label_bn || item.label_en) : item.label_en;
+                const activeChildren = (item.children || []).filter((child) => child.enabled !== false);
+                const isAccent = Boolean(item.accent);
+
+                if (activeChildren.length > 0) {
+                  return (
+                    <div className="nav-group" key={item.id || item.href}>
+                      <Link href={item.href} className={`nav-link ${isAccent ? "nav-link-accent" : ""}`}>
+                        {label}
+                        <ChevronDownIcon size={12} />
+                      </Link>
+                      <div className="nav-dropdown">
+                        {activeChildren.map((child) => {
+                          const childLabel = language === "bn" ? (child.label_bn || child.label_en) : child.label_en;
+                          return (
+                            <Link href={child.href} key={child.id || child.href} onClick={closePanels}>
+                              {childLabel}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    href={item.href}
+                    key={item.id || item.href}
+                    className={`nav-link ${isAccent ? "nav-link-accent strong" : ""}`}
+                    onClick={closePanels}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </nav>
-            <div className="header-actions"><button className="search-button" type="button" aria-label={t("header.search")} onClick={() => setSearchOpen(true)}><SearchIcon size={17} /></button><CartButton /></div>
+            <div className="header-actions">
+              <button className="search-button" type="button" aria-label={t("header.search")} onClick={() => setSearchOpen(true)}>
+                <SearchIcon size={17} />
+              </button>
+              <CartButton />
+            </div>
           </div>
         </div>
       </header>
 
-      {menuOpen && <div className="mobile-menu-layer" role="dialog" aria-modal="true" aria-label="Mobile navigation"><button className="drawer-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} /><aside className="mobile-menu-panel"><div className="mobile-menu-top"><LogoLockup /><button className="icon-button" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}><CloseIcon size={20} /></button></div><div className="mobile-menu-links"><Link href="/category/haircare" onClick={closePanels}>{t("nav.haircare")} <ChevronRightIcon size={16} /></Link><Link href="/category/hair-oil" onClick={closePanels}>{t("nav.hairOils")} <ChevronRightIcon size={16} /></Link><Link href="/category/hair-toner" onClick={closePanels}>{t("nav.hairToner")} <ChevronRightIcon size={16} /></Link><Link href="/category/shampoo" onClick={closePanels}>{t("nav.shampoo")} <ChevronRightIcon size={16} /></Link><Link href="/category/packages" onClick={closePanels}>{t("nav.packages")} <ChevronRightIcon size={16} /></Link><Link href="/guide" onClick={closePanels}>{t("nav.careGuide")} <ChevronRightIcon size={16} /></Link><Link href="/track" onClick={closePanels}>{t("nav.track")} <ChevronRightIcon size={16} /></Link><Link href="/refer-win" onClick={closePanels}>{t("nav.refer")} <ChevronRightIcon size={16} /></Link></div><div className="mobile-menu-note"><LeafIcon size={18} /><span>{language === "bn" ? "স্বাস্থ্যকর চুল শুরু হয় সঠিক যত্ন থেকে।" : "Healthy hair begins with the right care."}</span></div></aside></div>}
+      {menuOpen && (
+        <div className="mobile-menu-layer" role="dialog" aria-modal="true" aria-label="Mobile navigation">
+          <button className="drawer-backdrop" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
+          <aside className="mobile-menu-panel">
+            <div className="mobile-menu-top">
+              <LogoLockup />
+              <button className="icon-button" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+                <CloseIcon size={20} />
+              </button>
+            </div>
+            <div className="mobile-menu-links">
+              {activeMenu.map((item) => {
+                const label = language === "bn" ? (item.label_bn || item.label_en) : item.label_en;
+                const activeChildren = (item.children || []).filter((child) => child.enabled !== false);
 
-      {searchOpen && <div className="search-layer" role="dialog" aria-modal="true" aria-label={t("header.search")}><button className="drawer-backdrop" aria-label="Close search" onClick={() => setSearchOpen(false)} /><div className="search-panel"><div className="search-panel-head"><div className="search-input-wrap"><SearchIcon size={18} /><input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={language === "bn" ? "অয়েল, টোনার বা কম্বো সার্চ করুন..." : "Search hair oil, toner, combo..."} /></div><button className="icon-button" type="button" aria-label="Close search" onClick={() => setSearchOpen(false)}><CloseIcon size={20} /></button></div><p className="search-kicker">{search ? (language === "bn" ? "মিলে যাওয়া পণ্য" : "Matching products") : (language === "bn" ? "জনপ্রিয় কেয়ার এসেনশিয়াল" : "Popular care essentials")}</p><div className="search-results">{searchResults.length ? searchResults.map((product) => { const copy = localizedProduct(product, language); return <Link href={`/product/${product.slug}`} key={product.slug} className="search-result" onClick={() => setSearchOpen(false)}><img src={product.image || product.images?.[0] || '/media/alvero-oil-bottle.webp'} alt="" /><span><strong>{copy.name}</strong><small>{product.category} · {formatPrice(product.price)}</small></span><ChevronRightIcon size={16} /></Link>; }) : <p className="empty-search">{language === "bn" ? "কোনো পণ্য পাওয়া যায়নি।" : "No products found. Try “oil”, “toner” or “combo”."}</p>}</div></div></div>}
+                return (
+                  <div key={item.id || item.href} className="mobile-menu-item-group">
+                    <Link href={item.href} onClick={closePanels}>
+                      {label} <ChevronRightIcon size={16} />
+                    </Link>
+                    {activeChildren.length > 0 && (
+                      <div className="mobile-submenu-list" style={{ paddingLeft: "15px", marginBottom: "8px" }}>
+                        {activeChildren.map((child) => {
+                          const childLabel = language === "bn" ? (child.label_bn || child.label_en) : child.label_en;
+                          return (
+                            <Link
+                              href={child.href}
+                              key={child.id || child.href}
+                              onClick={closePanels}
+                              style={{ fontSize: "14px", opacity: 0.85, padding: "4px 0", display: "flex", alignItems: "center", gap: "6px" }}
+                            >
+                              <span>•</span> {childLabel}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mobile-menu-note">
+              <LeafIcon size={18} />
+              <span>{language === "bn" ? "স্বাস্থ্যকর চুল শুরু হয় সঠিক যত্ন থেকে।" : "Healthy hair begins with the right care."}</span>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {searchOpen && (
+        <div className="search-layer" role="dialog" aria-modal="true" aria-label={t("header.search")}>
+          <button className="drawer-backdrop" aria-label="Close search" onClick={() => setSearchOpen(false)} />
+          <div className="search-panel">
+            <div className="search-panel-head">
+              <div className="search-input-wrap">
+                <SearchIcon size={18} />
+                <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={language === "bn" ? "অয়েল, টোনার বা কম্বো সার্চ করুন..." : "Search hair oil, toner, combo..."} />
+              </div>
+              <button className="icon-button" type="button" aria-label="Close search" onClick={() => setSearchOpen(false)}>
+                <CloseIcon size={20} />
+              </button>
+            </div>
+            <p className="search-kicker">{search ? (language === "bn" ? "মিলে যাওয়া পণ্য" : "Matching products") : (language === "bn" ? "জনপ্রিয় কেয়ার এসেনশিয়াল" : "Popular care essentials")}</p>
+            <div className="search-results">
+              {searchResults.length ? (
+                searchResults.map((product) => {
+                  const copy = localizedProduct(product, language);
+                  return (
+                    <Link href={`/product/${product.slug}`} key={product.slug} className="search-result" onClick={() => setSearchOpen(false)}>
+                      <img src={product.image || product.images?.[0] || '/media/alvero-oil-bottle.webp'} alt="" />
+                      <span>
+                        <strong>{copy.name}</strong>
+                        <small>{product.category} · {formatPrice(product.price)}</small>
+                      </span>
+                      <ChevronRightIcon size={16} />
+                    </Link>
+                  );
+                })
+              ) : (
+                <p className="empty-search">{language === "bn" ? "কোনো পণ্য পাওয়া যায়নি।" : "No products found. Try “oil”, “toner” or “combo”."}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

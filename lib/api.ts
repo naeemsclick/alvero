@@ -47,6 +47,32 @@ export async function trackOrdersByPhone(phone: string) {
   return await res.json();
 }
 
+export interface AnnouncementItem {
+  id: string;
+  text_en: string;
+  text_bn: string;
+  enabled: boolean;
+}
+
+export interface MenuItemChild {
+  id: string;
+  label_en: string;
+  label_bn: string;
+  href: string;
+  enabled: boolean;
+  accent?: boolean;
+}
+
+export interface MenuItem {
+  id: string;
+  label_en: string;
+  label_bn: string;
+  href: string;
+  enabled: boolean;
+  accent?: boolean;
+  children?: MenuItemChild[];
+}
+
 export interface StoreSettings {
   site: {
     logo_url: string;
@@ -68,6 +94,10 @@ export interface StoreSettings {
       description_bn: string;
       copyright: string;
     };
+  };
+  navigation: {
+    announcements: AnnouncementItem[];
+    main_menu: MenuItem[];
   };
 }
 
@@ -93,6 +123,49 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       copyright: '© 2026 Alvero Hair Solutions. All rights reserved.',
     },
   },
+  navigation: {
+    announcements: [
+      { id: '1', text_en: '🚚 Free Delivery On Complete Packages!', text_bn: '🚚 সম্পূর্ণ প্যাকেজে ফ্রি ডেলিভারি!', enabled: true },
+      { id: '2', text_en: '🌿 Nature-inspired care for stronger, healthier hair', text_bn: '🌿 শক্ত ও স্বাস্থ্যকর চুলের জন্য প্রকৃতি-অনুপ্রাণিত যত্ন', enabled: true },
+      { id: '3', text_en: '💚 Cash on Delivery available across Bangladesh', text_bn: '💚 বাংলাদেশজুড়ে ক্যাশ অন ডেলিভারি', enabled: true },
+    ],
+    main_menu: [
+      {
+        id: 'haircare',
+        label_en: 'Haircare',
+        label_bn: 'চুলের যত্ন',
+        href: '/category/haircare',
+        enabled: true,
+        accent: false,
+        children: [
+          { id: 'hair-oil', label_en: 'Hair Oil', label_bn: 'হেয়ার অয়েল', href: '/category/hair-oil', enabled: true, accent: false },
+          { id: 'hair-toner', label_en: 'Hair Toner', label_bn: 'হেয়ার টোনার', href: '/category/hair-toner', enabled: true, accent: false },
+          { id: 'shampoo', label_en: 'Shampoo', label_bn: 'শ্যাম্পু', href: '/category/shampoo', enabled: true, accent: false },
+          { id: 'packages', label_en: 'Packages', label_bn: 'প্যাকেজ', href: '/category/packages', enabled: true, accent: false },
+          { id: 'all-haircare', label_en: 'All Haircare', label_bn: 'সব হেয়ার কেয়ার', href: '/category/haircare', enabled: true, accent: false },
+        ],
+      },
+      {
+        id: 'care-guide',
+        label_en: 'Care Guide',
+        label_bn: 'কেয়ার গাইড',
+        href: '/guide',
+        enabled: true,
+        accent: false,
+        children: [
+          { id: 'hair-fall', label_en: 'Hair Fall', label_bn: 'চুল পড়া', href: '/guide/hair-fall-care', enabled: true, accent: false },
+          { id: 'dry-hair', label_en: 'Dry Hair Routine', label_bn: 'শুষ্ক চুল', href: '/guide/dry-hair-routine', enabled: true, accent: false },
+          { id: 'scalp-care', label_en: 'Scalp Care Basics', label_bn: 'স্ক্যাল্প কেয়ার', href: '/guide/scalp-care-basics', enabled: true, accent: false },
+          { id: 'find-care-guide', label_en: 'Find Your Care', label_bn: 'আপনার যত্ন বেছে নিন', href: '/guide', enabled: true, accent: false },
+        ],
+      },
+      { id: 'standalone-hair-oil', label_en: 'Hair Oils', label_bn: 'হেয়ার অয়েল', href: '/category/hair-oil', enabled: true, accent: false },
+      { id: 'standalone-packages', label_en: 'Packages', label_bn: 'প্যাকেজ', href: '/category/packages', enabled: true, accent: false },
+      { id: 'track', label_en: 'Track My Order', label_bn: 'অর্ডার ট্র্যাক করুন', href: '/track', enabled: true, accent: false },
+      { id: 'refer', label_en: 'Refer & Win', label_bn: 'রেফার & জিতুন', href: '/refer-win', enabled: true, accent: true },
+      { id: 'find-care-concerns', label_en: 'Find Your Care', label_bn: 'আপনার যত্ন বেছে নিন', href: '/#concerns', enabled: true, accent: true },
+    ],
+  },
 };
 
 // Fetch Site Settings from WordPress Admin (Hero Banner, Announcement, Pixels, Links)
@@ -101,19 +174,27 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
     const res = await fetch(`${WC_URL}/wp-json/alvero/v1/settings`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (data && data.site) {
+      if (data && (data.site || data.navigation)) {
         return {
           site: {
             ...DEFAULT_STORE_SETTINGS.site,
-            ...data.site,
+            ...(data.site || {}),
             social: {
               ...DEFAULT_STORE_SETTINGS.site.social,
-              ...(data.site.social || {})
+              ...(data.site?.social || {})
             },
             footer: {
               ...DEFAULT_STORE_SETTINGS.site.footer,
-              ...(data.site.footer || {})
+              ...(data.site?.footer || {})
             }
+          },
+          navigation: {
+            announcements: Array.isArray(data.navigation?.announcements) && data.navigation.announcements.length > 0
+              ? data.navigation.announcements
+              : DEFAULT_STORE_SETTINGS.navigation.announcements,
+            main_menu: Array.isArray(data.navigation?.main_menu) && data.navigation.main_menu.length > 0
+              ? data.navigation.main_menu
+              : DEFAULT_STORE_SETTINGS.navigation.main_menu,
           }
         };
       }
