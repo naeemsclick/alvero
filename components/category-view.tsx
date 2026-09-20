@@ -45,15 +45,26 @@ export function CategoryView({ slug }: { slug: string }) {
     return () => { isMounted = false; };
   }, [slug]);
 
-  const category = categories.find((item) => item.slug === slug) ?? categories[0];
+  const knownCategory = categories.find((item) => item.slug === slug);
+  const categoryLabel = knownCategory
+    ? (language === "bn"
+        ? ({ Haircare: "হেয়ার কেয়ার", "Hair Oil": "হেয়ার অয়েল", "Hair Toner": "হেয়ার টোনার", Shampoo: "শ্যাম্পু", Packages: "প্যাকেজ" } as Record<string, string>)[knownCategory.label] || knownCategory.label
+        : knownCategory.label)
+    : slug.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 
-  const categoryProducts = slug === "haircare" || slug === "all"
+  const isAllCategory = slug === "haircare" || slug === "all";
+
+  const categoryProducts = isAllCategory
     ? wpProducts
-    : wpProducts.filter((p) => p.categorySlug === slug || p.category.toLowerCase().includes(slug.replace('-', ' ')));
-
-  const categoryLabel = language === "bn"
-    ? ({ Haircare: "হেয়ার কেয়ার", "Hair Oil": "হেয়ার অয়েল", "Hair Toner": "হেয়ার টোনার", Shampoo: "শ্যাম্পু", Packages: "প্যাকেজ" } as Record<string, string>)[category.label] || category.label
-    : category.label;
+    : wpProducts.filter((p) => {
+        if (Array.isArray(p.categories) && p.categories.some((c) => c.slug === slug || c.slug.toLowerCase() === slug.toLowerCase() || c.name.toLowerCase() === slug.replace(/-/g, ' '))) {
+          return true;
+        }
+        if (p.categorySlug === slug) return true;
+        if (p.category && p.category.toLowerCase().replace(/\s+/g, '-') === slug) return true;
+        if (p.category && p.category.toLowerCase().includes(slug.replace(/-/g, ' '))) return true;
+        return false;
+      });
 
   return (
     <div className="collection-page">

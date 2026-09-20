@@ -4,6 +4,7 @@ export type Product = {
   name: string;
   category: string;
   categorySlug: string;
+  categories?: { id: string; name: string; slug: string }[];
   price: number;
   oldPrice?: number;
   originalPrice?: number;
@@ -38,6 +39,14 @@ export function normalizeWpProduct(prod: any): Product {
   const oldPrice = regularPrice && Number(regularPrice) > price ? Number(regularPrice) : undefined;
   const isInstock = prod.stock_status ? prod.stock_status === 'instock' : (prod.stock !== undefined ? Boolean(prod.stock) : (prod.inStock !== undefined ? Boolean(prod.inStock) : true));
 
+  const rawCategories = Array.isArray(prod.categories) && prod.categories.length
+    ? prod.categories.map((c: any) => ({
+        id: String(c.id || c.slug),
+        name: String(c.name || 'Haircare'),
+        slug: String(c.slug || 'haircare')
+      }))
+    : [{ id: '0', name: prod.category || 'Haircare', slug: prod.categorySlug || 'haircare' }];
+
   const shortDesc = prod.short_description
     ? prod.short_description.replace(/<[^>]+>/g, '').trim()
     : (prod.blurb || prod.tagline || prod.shortDescription || 'Nature-led care for hair');
@@ -55,8 +64,9 @@ export function normalizeWpProduct(prod: any): Product {
     id: String(prod.id || prod.slug),
     slug: prod.slug,
     name: prod.name,
-    category: prod.categories?.[0]?.name || prod.category || 'Haircare',
-    categorySlug: prod.categories?.[0]?.slug || prod.categorySlug || 'haircare',
+    category: rawCategories[0]?.name || prod.category || 'Haircare',
+    categorySlug: rawCategories[0]?.slug || prod.categorySlug || 'haircare',
+    categories: rawCategories,
     price: price,
     oldPrice: oldPrice,
     originalPrice: oldPrice,

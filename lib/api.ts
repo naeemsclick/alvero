@@ -70,9 +70,9 @@ export async function fetchWpGuides() {
         id: p.id,
         slug: p.slug,
         title: p.title?.rendered || 'Alvero Care Guide',
-        excerpt: p.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '',
+        excerpt: p.excerpt?.rendered?.replace(/<[^>]+>/g, '').trim() || '',
         content: p.content?.rendered || '',
-        image: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || 'https://alvero.pages.dev/media/alvero-guide-1.jpg',
+        image: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
         date: p.date,
       }));
     }
@@ -80,6 +80,30 @@ export async function fetchWpGuides() {
     console.error('Error fetching WordPress care guides:', err);
   }
   return [];
+}
+
+export async function fetchWpGuideBySlug(slug: string) {
+  try {
+    const res = await fetch(`${WC_URL}/wp-json/wp/v2/posts?slug=${encodeURIComponent(slug)}&_embed`, { cache: 'no-store' });
+    if (res.ok) {
+      const posts = await res.json();
+      if (Array.isArray(posts) && posts.length > 0) {
+        const p = posts[0];
+        return {
+          id: p.id,
+          slug: p.slug,
+          title: p.title?.rendered || 'Alvero Care Guide',
+          excerpt: p.excerpt?.rendered?.replace(/<[^>]+>/g, '').trim() || '',
+          content: p.content?.rendered || '',
+          image: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+          date: p.date,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching WordPress guide by slug:', err);
+  }
+  return null;
 }
 
 // Fetch Live Products from WooCommerce REST API via Route Handler

@@ -4,31 +4,57 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLanguage, LanguageToggle } from "@/components/language-context";
 import { ArrowLeftIcon, ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, LeafIcon } from "@/components/icons";
-import { guideFaqs, guidePosts, type GuideCopy, type GuidePost } from "@/lib/guide";
+import { guideFaqs, type GuideCopy } from "@/lib/guide";
 import { RelatedProducts } from "@/components/home-sections";
-import { fetchWpGuides } from "@/lib/api";
+import { fetchWpGuides, fetchWpGuideBySlug } from "@/lib/api";
 
 function copyFor(item: { en: GuideCopy; bn: GuideCopy }, language: "en" | "bn"): GuideCopy {
   return item[language];
+}
+
+function GuideSkeleton() {
+  return (
+    <div className="guide-grid" style={{ opacity: 0.6 }}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="guide-card" style={{ height: 320, background: "rgba(0,0,0,0.03)", borderRadius: 12 }} />
+      ))}
+    </div>
+  );
 }
 
 export function GuidePage() {
   const { language, t } = useLanguage();
   const [page, setPage] = useState(1);
   const [wpPosts, setWpPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetchWpGuides().then((posts) => {
-      if (posts && posts.length > 0) {
-        setWpPosts(posts);
-      }
-    });
+    let isMounted = true;
+    setLoading(true);
+    setError(false);
+
+    fetchWpGuides()
+      .then((posts) => {
+        if (isMounted) {
+          setWpPosts(posts || []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching WordPress care guides:", err);
+        if (isMounted) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+
+    return () => { isMounted = false; };
   }, []);
 
   const pageSize = 6;
-  const displayPosts = wpPosts.length > 0 ? wpPosts : guidePosts;
-  const pageCount = Math.ceil(displayPosts.length / pageSize);
-  const visiblePosts = displayPosts.slice((page - 1) * pageSize, page * pageSize);
+  const pageCount = Math.ceil(wpPosts.length / pageSize);
+  const visiblePosts = wpPosts.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="guide-page">
@@ -44,13 +70,21 @@ export function GuidePage() {
           </div>
         </div>
 
-        <div className="guide-grid">
-          {visiblePosts.map((post: any) => (
-            <GuideCard key={post.slug || post.id} post={post} language={language} readLabel={t("guide.read")} />
-          ))}
-        </div>
+        {loading ? (
+          <GuideSkeleton />
+        ) : error ? (
+          <div className="collection-empty">{language === "bn" ? "গাইড লোড করতে সমস্যা হয়েছে।" : "Failed to load care guides."}</div>
+        ) : wpPosts.length > 0 ? (
+          <div className="guide-grid">
+            {visiblePosts.map((post: any) => (
+              <GuideCard key={post.slug || post.id} post={post} language={language} readLabel={t("guide.read")} />
+            ))}
+          </div>
+        ) : (
+          <div className="collection-empty">{language === "bn" ? "বর্তমানে কোনো হেয়ার কেয়ার গাইড পাওয়া যায়নি।" : "No care guides available at the moment."}</div>
+        )}
 
-        {pageCount > 1 && (
+        {!loading && pageCount > 1 && (
           <nav className="guide-pagination" aria-label="Guide pages">
             <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
               <ArrowLeftIcon size={14} /> {language === "bn" ? "আগের পেজ" : "Previous page"}
@@ -87,18 +121,23 @@ export function GuidePage() {
 }
 
 function GuideCard({ post, language, readLabel }: { post: any; language: "en" | "bn"; readLabel: string }) {
-  const isWp = Boolean(post.id);
-  const title = isWp ? post.title : copyFor(post, language).title;
-  const excerpt = isWp ? post.excerpt : copyFor(post, language).excerpt;
-  const image = post.image || '/media/alvero-guide-1.jpg';
-  const category = isWp ? 'Care Guide' : post.category;
+  const title = post.title || 'Alvero Care Guide';
+  const excerpt = post.excerpt || '';
+  const image = post.image || null;
+  const category = 'Care Guide';
   const slug = post.slug;
 
   return (
     <Link href={`/guide/${slug}`} className="guide-card">
-      <div className="guide-card-image">
-        <img src={image} alt={title} />
-        <span>{category} · {post.readTime || '3 min read'}</span>
+      <div className="guide-card-image" style={!image ? { display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f3ef' } : undefined}>
+        {image ? (
+          <img src={image} alt={title} />
+        ) : (
+          <div style={{ textAlign: 'center', color: '#888' }}>
+            <LeafIcon size={32} />
+          </div>
+        )}
+        <span>{category}</span>
       </div>
       <div className="guide-card-body">
         <div className="guide-card-copy">
@@ -146,12 +185,54 @@ function GuideFaq() {
   );
 }
 
-export function GuideArticle({ post }: { post: GuidePost }) {
+export function GuideArticle({ slug, post: initialPost }: { slug?: string; post?: any }) {
+  const [article, setArticle] = useState<any>(initialPost || null);
+  const [loading, setLoading] = useState(!initialPost);
   const { language, t } = useLanguage();
-  const copy = copyFor(post, language) as GuideCopy;
-  const currentIndex = guidePosts.findIndex((item) => item.slug === post.slug);
-  const previous = guidePosts[(currentIndex - 1 + guidePosts.length) % guidePosts.length];
-  const next = guidePosts[(currentIndex + 1) % guidePosts.length];
+
+  useEffect(() => {
+    if (!initialPost && slug) {
+      let isMounted = true;
+      setLoading(true);
+      fetchWpGuideBySlug(slug).then((res) => {
+        if (isMounted) {
+          setArticle(res);
+          setLoading(false);
+        }
+      }).catch(() => {
+        if (isMounted) setLoading(false);
+      });
+      return () => { isMounted = false; };
+    }
+  }, [slug, initialPost]);
+
+  if (loading) {
+    return (
+      <div className="guide-article-page" style={{ opacity: 0.6, padding: "80px 0" }}>
+        <div className="page-shell guide-article-shell">
+          <div style={{ height: 350, background: "rgba(0,0,0,0.03)", borderRadius: 16 }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="guide-article-page" style={{ padding: "100px 0", textAlign: "center" }}>
+        <div className="page-shell guide-article-shell">
+          <h2>{language === "bn" ? "গাইডটি পাওয়া যায়নি" : "Guide Not Found"}</h2>
+          <div style={{ marginTop: 24 }}>
+            <Link className="btn btn-primary" href="/guide">{language === "bn" ? "সব গাইড দেখুন" : "View All Care Guides"} <ArrowRightIcon size={14} /></Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const title = article.title || article.en?.title || 'Alvero Care Guide';
+  const excerpt = article.excerpt || article.en?.excerpt || '';
+  const content = article.content || '';
+  const image = article.image || null;
 
   return (
     <div className="guide-article-page">
@@ -161,45 +242,34 @@ export function GuideArticle({ post }: { post: GuidePost }) {
           <ChevronRightIcon size={13} />
           <Link href="/guide">{t("nav.careGuide")}</Link>
           <ChevronRightIcon size={13} />
-          <span>{copy.title}</span>
+          <span>{title}</span>
         </div>
         <article className="guide-article">
           <header className="guide-article-header">
-            <p className="eyebrow">{post.category} · {post.readTime}</p>
-            <h1>{copy.title}</h1>
-            <p className="guide-article-intro">{copy.intro}</p>
+            <p className="eyebrow">Care Guide</p>
+            <h1>{title}</h1>
+            <p className="guide-article-intro">{excerpt}</p>
             <div className="article-language-row">
-              <span>{language === "bn" ? "ভাষা পরিবর্তন করুন" : "Read this guide in"}</span>
+              <span>{language === "bn" ? "ভাষা বেছে নিন" : "Language options"}</span>
               <LanguageToggle />
             </div>
           </header>
-          <div className="article-cover">
-            <img src={post.image} alt={copy.title} />
-          </div>
-          <div className="article-content">
-            {copy.blocks.map((block, index) => (
-              <section key={`${block.heading}-${index}`}>
-                {block.heading && <h2>{block.heading}</h2>}
-                {block.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-                {block.bullets && (
-                  <ul>
-                    {block.bullets.map((bullet) => (
-                      <li key={bullet}>{bullet}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
-            <div className="article-note">
-              <LeafIcon size={18} />
-              <p>
-                {language === "bn"
-                  ? "মনে রাখবেন: চুল ও স্ক্যাল্পের প্রয়োজন ব্যক্তিভেদে আলাদা। অস্বস্তি বা দীর্ঘস্থায়ী সমস্যা থাকলে যোগ্য বিশেষজ্ঞের পরামর্শ নিন।"
-                  : "Remember: hair and scalp needs vary from person to person. Seek qualified professional advice for persistent or uncomfortable concerns."}
-              </p>
+
+          {image && (
+            <div className="article-cover">
+              <img src={image} alt={title} />
             </div>
+          )}
+
+          <div className="article-content" dangerouslySetInnerHTML={{ __html: content || `<p>${excerpt}</p>` }} />
+
+          <div className="article-note">
+            <LeafIcon size={18} />
+            <p>
+              {language === "bn"
+                ? "মনে রাখবেন: চুল ও স্ক্যাল্পের প্রয়োজন ব্যক্তিভেদে আলাদা। অস্বস্তি বা দীর্ঘস্থায়ী সমস্যা থাকলে যোগ্য বিশেষজ্ঞের পরামর্শ নিন।"
+                : "Remember: hair and scalp needs vary from person to person. Seek qualified professional advice for persistent or uncomfortable concerns."}
+            </p>
           </div>
           <GuideFaq />
           <div className="article-help">
@@ -209,22 +279,6 @@ export function GuideArticle({ post }: { post: GuidePost }) {
             </div>
             <RelatedProducts />
           </div>
-          <nav className="article-pagination" aria-label="Guide pagination">
-            <Link href={`/guide/${previous.slug}`}>
-              <ArrowLeftIcon size={15} />
-              <span>
-                <small>{t("guide.previous")}</small>
-                <strong>{copyFor(previous, language).title}</strong>
-              </span>
-            </Link>
-            <Link href={`/guide/${next.slug}`}>
-              <span className="next-copy">
-                <small>{t("guide.next")}</small>
-                <strong>{copyFor(next, language).title}</strong>
-              </span>
-              <ArrowRightIcon size={15} />
-            </Link>
-          </nav>
         </article>
       </div>
     </div>

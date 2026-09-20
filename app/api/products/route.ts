@@ -16,7 +16,15 @@ export async function GET() {
           ? prod.images.map((img: any) => img.src)
           : ['/media/alvero-oil-bottle.webp'];
         const primaryImage = imagesList[0] || '/media/alvero-oil-bottle.webp';
-        
+
+        const rawCategories = Array.isArray(prod.categories) && prod.categories.length
+          ? prod.categories.map((c: any) => ({
+              id: String(c.id),
+              name: String(c.name),
+              slug: String(c.slug)
+            }))
+          : [{ id: '0', name: 'Haircare', slug: 'haircare' }];
+
         const price = Number(prod.price || prod.regular_price || 0);
         const regularPrice = prod.regular_price ? Number(prod.regular_price) : undefined;
         const oldPrice = regularPrice && regularPrice > price ? regularPrice : undefined;
@@ -39,8 +47,9 @@ export async function GET() {
           id: String(prod.id),
           slug: prod.slug,
           name: prod.name,
-          category: prod.categories?.[0]?.name || 'Haircare',
-          categorySlug: prod.categories?.[0]?.slug || 'haircare',
+          category: rawCategories[0]?.name || 'Haircare',
+          categorySlug: rawCategories[0]?.slug || 'haircare',
+          categories: rawCategories,
           price: price,
           oldPrice: oldPrice,
           originalPrice: oldPrice,
